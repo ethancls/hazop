@@ -45,81 +45,57 @@
   }
 </script>
 
-<form on:submit|preventDefault={handleSubmit} class="space-y-6">
+<form on:submit|preventDefault={handleSubmit} class="space-y-5">
   <!-- Project Name -->
-  <div>
-    <label for="name" class="form-label">
-      Project Name <span class="text-destructive">*</span>
-    </label>
-    <Input 
-      id="name"
-      bind:value={name}
-      placeholder="e.g., Distillation Column Safety Study"
-      required
-    />
-  </div>
+  <Input 
+    id="name"
+    bind:value={name}
+    label="Project Name"
+    placeholder="e.g., Distillation Column Safety Study"
+    required
+  />
 
   <!-- Description -->
-  <div>
-    <label for="description" class="form-label">
-      Project Description
-    </label>
-    <Textarea 
-      id="description"
-      bind:value={description}
-      placeholder="Brief overview of the HAZOP study objectives and scope..."
-      rows={3}
-    />
-  </div>
+  <Textarea 
+    id="description"
+    bind:value={description}
+    label="Project Description"
+    placeholder="Brief overview of the HAZOP study objectives and scope..."
+    rows={3}
+  />
 
   <!-- Process Description -->
-  <div>
-    <label for="processDescription" class="form-label">
-      Process Description <span class="text-destructive">*</span>
-    </label>
-    <Textarea 
-      id="processDescription"
-      bind:value={processDescription}
-      placeholder="Detailed description of the chemical process, including key equipment, materials, and operating conditions..."
-      rows={5}
-      required
-    />
-    <p class="mt-1.5 text-xs text-muted-foreground">
-      Include information about the process flow, equipment involved, and key operating parameters.
-    </p>
-  </div>
+  <Textarea 
+    id="processDescription"
+    bind:value={processDescription}
+    label="Process Description"
+    placeholder="Detailed description of the chemical process, including key equipment, materials, and operating conditions..."
+    hint="Include information about the process flow, equipment involved, and key operating parameters."
+    rows={5}
+    required
+  />
 
   <!-- PFD Reference -->
-  <div>
-    <label for="pfdReference" class="form-label">
-      PFD/P&ID Reference
-    </label>
-    <Input 
-      id="pfdReference"
-      bind:value={pfdReference}
-      placeholder="e.g., PFD-001-REV-A"
-    />
-    <p class="mt-1.5 text-xs text-muted-foreground">
-      Reference number for the associated Process Flow Diagram or P&ID.
-    </p>
-  </div>
+  <Input 
+    id="pfdReference"
+    bind:value={pfdReference}
+    label="PFD/P&ID Reference"
+    placeholder="e.g., PFD-001-REV-A"
+    hint="Reference number for the associated Process Flow Diagram or P&ID."
+  />
 
   <!-- Status (only for edit mode) -->
   {#if mode === 'edit'}
-    <div>
-      <label for="status" class="form-label">
-        Project Status
-      </label>
-      <Select 
-        id="status"
-        bind:value={status}
-        options={statusOptions}
-      />
-    </div>
+    <Select 
+      id="status"
+      bind:value={status}
+      label="Project Status"
+      options={statusOptions}
+    />
   {/if}
 
   <!-- Form Actions -->
-  <div class="flex items-center justify-end gap-3 pt-4 border-t border-border">
+  <div class="flex items-center justify-end gap-3 pt-5 border-t border-border">
     <Button variant="outline" on:click={handleCancel}>
       Cancel
     </Button>

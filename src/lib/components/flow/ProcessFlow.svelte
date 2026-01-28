@@ -1,11 +1,11 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { SvelteFlow, Controls, Background, MiniMap } from '@xyflow/svelte';
-  import type { Node as FlowNode, Edge } from '@xyflow/svelte';
+  import { SvelteFlow, Controls, Background, MiniMap, BackgroundVariant } from '@xyflow/svelte';
+  import type { Node as FlowNode, Edge, OnConnect } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   
   import type { Node } from '../../types/hazop';
-  import { flowNodes, deviations, nodes, currentProject } from '../../stores/hazopStore';
+  import { flowNodes, deviations, nodes, currentProject, darkMode } from '../../stores/hazopStore';
   import HAZOPNode from './HAZOPNode.svelte';
   import Button from '../ui/Button.svelte';
 
@@ -25,36 +25,40 @@
     selectable: true,
   })) as FlowNode[];
 
-  function handleNodeClick(event: CustomEvent) {
-    const nodeId = event.detail.node?.id;
-    if (nodeId) {
-      selectedNodeId = nodeId;
-      const hazopNode = $nodes.find(n => n.id === nodeId);
+  // Better fit view options - less zoomed
+  const fitViewOptions = {
+    padding: 0.3,
+    maxZoom: 1,
+    minZoom: 0.3,
+  };
+
+  function handleNodeClick({ event, node }: { event: MouseEvent | TouchEvent; node: FlowNode }) {
+    if (node?.id) {
+      selectedNodeId = node.id;
+      const hazopNode = $nodes.find(n => n.id === node.id);
       if (hazopNode) {
         dispatch('nodeSelect', hazopNode);
       }
     }
   }
 
-  function handleNodeDragStop(event: CustomEvent) {
-    const { node } = event.detail;
-    if (node) {
-      nodes.update(node.id, { position: node.position });
+  function handleNodeDragStop({ targetNode }: { targetNode: FlowNode | null; nodes: FlowNode[]; event: MouseEvent | TouchEvent }) {
+    if (targetNode) {
+      nodes.update(targetNode.id, { position: targetNode.position });
     }
   }
 
-  function handleConnect(event: CustomEvent) {
-    const { source, target } = event.detail;
-    if (source && target) {
+  const handleConnect: OnConnect = (connection) => {
+    if (connection.source && connection.target) {
       edges = [...edges, {
-        id: `e${source}-${target}`,
-        source,
-        target,
+        id: `e${connection.source}-${connection.target}`,
+        source: connection.source,
+        target: connection.target,
         animated: true,
         style: 'stroke: hsl(var(--primary)); stroke-width: 2px;',
       }];
     }
-  }
+  };
 
   function handlePaneClick() {
     selectedNodeId = null;
@@ -68,30 +72,39 @@
       {edges}
       {nodeTypes}
       fitView
-      on:nodeclick={handleNodeClick}
-      on:nodedragstop={handleNodeDragStop}
-      on:connect={handleConnect}
-      on:paneclick={handlePaneClick}
+      fitViewOptions={fitViewOptions}
+      onnodeclick={handleNodeClick}
+      onnodedragstop={handleNodeDragStop}
+      onconnect={handleConnect}
+      onpaneclick={handlePaneClick}
       defaultEdgeOptions={{
         type: 'smoothstep',
         animated: true,
       }}
+      minZoom={0.2}
+      maxZoom={2}
     >
-      <Background gap={20} color="hsl(var(--border))" />
+      <Background 
+        gap={20} 
+        bgColor={$darkMode ? 'transparent' : 'transparent'}
+        variant={BackgroundVariant.Dots}
+        patternColor={$darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}
+      />
       <Controls 
         showLock={false}
-        class="bg-card border border-border rounded-lg shadow-lg"
+        class="!bg-card !border-border !rounded-lg !shadow-lg"
       />
       <MiniMap 
-        class="bg-card border border-border rounded-lg shadow-lg"
+        class="!bg-card !border-border !rounded-lg !shadow-lg"
+        maskColor={$darkMode ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.7)'}
         nodeColor={(node) => {
           const data = node.data as { riskLevel?: string };
           switch (data?.riskLevel) {
-            case 'critical': return 'hsl(var(--destructive))';
-            case 'high': return 'hsl(var(--destructive))';
-            case 'medium': return 'hsl(var(--warning))';
-            case 'low': return 'hsl(var(--success))';
-            default: return 'hsl(var(--primary))';
+            case 'critical': return '#ef4444';
+            case 'high': return '#f97316';
+            case 'medium': return '#eab308';
+            case 'low': return '#22c55e';
+            default: return '#ff3e00';
           }
         }}
       />
@@ -132,29 +145,82 @@
 
 <style>
   :global(.svelte-flow) {
-    background: hsl(var(--muted) / 0.3);
+    background: hsl(var(--background)) !important;
+  }
+  
+  :global(.dark .svelte-flow) {
+    background: hsl(0 0% 6%) !important;
+  }
+  
+  :global(.svelte-flow__pane) {
+    cursor: grab;
+  }
+  
+  :global(.svelte-flow__pane:active) {
+    cursor: grabbing;
   }
   
   :global(.svelte-flow__controls) {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: 0.5rem;
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    background: hsl(var(--card)) !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 0.5rem !important;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
+    overflow: hidden;
   }
   
   :global(.svelte-flow__controls-button) {
-    background: hsl(var(--card));
-    border-color: hsl(var(--border));
-    color: hsl(var(--foreground));
+    background: hsl(var(--card)) !important;
+    border-color: hsl(var(--border)) !important;
+    color: hsl(var(--foreground)) !important;
+    width: 28px !important;
+    height: 28px !important;
   }
   
   :global(.svelte-flow__controls-button:hover) {
-    background: hsl(var(--accent));
+    background: hsl(var(--accent)) !important;
+  }
+  
+  :global(.svelte-flow__controls-button svg) {
+    fill: currentColor !important;
+    max-width: 14px !important;
+    max-height: 14px !important;
   }
   
   :global(.svelte-flow__minimap) {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: 0.5rem;
+    background: hsl(var(--card)) !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 0.5rem !important;
+    overflow: hidden;
+  }
+  
+  :global(.svelte-flow__edge-path) {
+    stroke: hsl(var(--primary)) !important;
+    stroke-width: 2px;
+  }
+  
+  :global(.svelte-flow__edge.animated path) {
+    stroke-dasharray: 5;
+    animation: dashdraw 0.5s linear infinite;
+  }
+  
+  @keyframes dashdraw {
+    from { stroke-dashoffset: 10; }
+    to { stroke-dashoffset: 0; }
+  }
+  
+  :global(.svelte-flow__handle) {
+    width: 10px !important;
+    height: 10px !important;
+    border-radius: 50% !important;
+    background: hsl(var(--primary)) !important;
+    border: 2px solid hsl(var(--background)) !important;
+  }
+  
+  :global(.svelte-flow__handle:hover) {
+    transform: scale(1.2);
+  }
+  
+  :global(.svelte-flow__attribution) {
+    display: none !important;
   }
 </style>

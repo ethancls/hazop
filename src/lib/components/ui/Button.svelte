@@ -6,6 +6,8 @@
   export let disabled = false;
   export let type: 'button' | 'submit' | 'reset' = 'button';
   export let href: string | null = null;
+  let className = '';
+  export { className as class };
 
   const dispatch = createEventDispatcher();
 
@@ -24,9 +26,9 @@
   };
 
   $: classes = `inline-flex items-center justify-center gap-2 font-medium rounded-md 
-    transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 
+    transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background
     disabled:pointer-events-none disabled:opacity-50 
-    ${variantClasses[variant]} ${sizeClasses[size]}`;
+    ${variantClasses[variant]} ${sizeClasses[size]} ${className}`;
 </script>
 
 {#if href}

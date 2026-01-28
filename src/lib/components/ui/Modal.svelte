@@ -1,19 +1,21 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
-  import { fade, scale } from 'svelte/transition';
+  import { fade, fly } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
 
   export let open = false;
   export let title = '';
   export let description = '';
-  export let size: 'sm' | 'md' | 'lg' | 'xl' = 'md';
+  export let size: 'sm' | 'md' | 'lg' | 'xl' | 'full' = 'md';
 
   const dispatch = createEventDispatcher();
 
   const sizeClasses = {
-    sm: 'max-w-sm',
+    sm: 'max-w-md',
     md: 'max-w-lg',
     lg: 'max-w-2xl',
     xl: 'max-w-4xl',
+    full: 'max-w-[90vw]',
   };
 
   function handleKeydown(event: KeyboardEvent) {
@@ -37,29 +39,39 @@
     document.addEventListener('keydown', handleKeydown);
     return () => document.removeEventListener('keydown', handleKeydown);
   });
+
+  // Lock body scroll when modal is open
+  $: if (typeof document !== 'undefined') {
+    document.body.style.overflow = open ? 'hidden' : '';
+  }
 </script>
 
 {#if open}
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <div 
-    class="fixed inset-0 z-50 flex items-center justify-center"
-    transition:fade={{ duration: 150 }}
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
     on:click={handleBackdropClick}
+    on:keydown={handleKeydown}
     role="dialog"
     aria-modal="true"
     aria-labelledby="modal-title"
+    tabindex="-1"
   >
     <!-- Backdrop -->
-    <div class="absolute inset-0 bg-background/80 backdrop-blur-sm"></div>
+    <div 
+      class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      transition:fade={{ duration: 200 }}
+    ></div>
     
     <!-- Modal -->
     <div 
-      class="relative w-full {sizeClasses[size]} mx-4 bg-card rounded-lg shadow-xl border border-border"
-      transition:scale={{ duration: 150, start: 0.95 }}
+      class="relative w-full {sizeClasses[size]} bg-card rounded-xl shadow-2xl border border-border overflow-hidden"
+      transition:fly={{ y: 20, duration: 300, easing: cubicOut }}
     >
       <!-- Header -->
       {#if title || $$slots.header}
-        <div class="flex items-start justify-between p-6 border-b border-border">
-          <div>
+        <div class="flex items-start justify-between px-6 py-5 border-b border-border bg-muted/30">
+          <div class="pr-8">
             {#if $$slots.header}
               <slot name="header" />
             {:else}
@@ -71,7 +83,7 @@
           </div>
           <button
             type="button"
-            class="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            class="absolute right-4 top-4 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-all"
             on:click={close}
             aria-label="Close modal"
           >
@@ -83,7 +95,7 @@
       {/if}
       
       <!-- Content -->
-      <div class="p-6 max-h-[70vh] overflow-y-auto">
+      <div class="px-6 py-6 max-h-[calc(100vh-200px)] overflow-y-auto">
         <slot />
       </div>
       

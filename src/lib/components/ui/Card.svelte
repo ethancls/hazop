@@ -17,12 +17,19 @@
   };
 </script>
 
-<div 
-  class="rounded-lg {variantClasses[variant]} {paddingClasses[padding]} {hoverable ? 'hover:shadow-md transition-shadow cursor-pointer' : ''}"
-  on:click
-  on:keydown
-  role={hoverable ? 'button' : undefined}
-  tabindex={hoverable ? 0 : undefined}
->
-  <slot />
-</div>
+{#if hoverable}
+  <button 
+    type="button"
+    class="w-full text-left rounded-xl {variantClasses[variant]} {paddingClasses[padding]} hover:shadow-md hover:border-primary/30 transition-all cursor-pointer"
+    on:click
+    on:keydown
+  >
+    <slot />
+  </button>
+{:else}
+  <div 
+    class="rounded-xl {variantClasses[variant]} {paddingClasses[padding]}"
+  >
+    <slot />
+  </div>
+{/if}
