@@ -10,7 +10,7 @@ export function MainContent({ children }: { children: React.ReactNode }) {
     <main
       className={cn(
         "transition-[padding-left] duration-300 ease-out",
-        isCollapsed ? "pl-15" : "pl-72"
+        isCollapsed ? "pl-16" : "pl-72"
       )}
     >
       <div className="min-h-screen">{children}</div>

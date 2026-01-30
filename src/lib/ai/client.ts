@@ -1,12 +1,31 @@
 // AI Client for multiple providers
 
-import { AIProvider, AIMessage, HAZOP_SYSTEM_PROMPT, HAZOPAnalysisRequest, HAZOPAnalysisResponse, AI_PROVIDERS } from "./providers";
+import { AIProvider, AIMessage, HAZOP_SYSTEM_PROMPT, NODE_GENERATION_SYSTEM_PROMPT, HAZOPAnalysisRequest, HAZOPAnalysisResponse, AI_PROVIDERS } from "./providers";
 
 interface AIClientOptions {
   provider: AIProvider;
   apiKey: string;
   model?: string;
   baseUrl?: string;
+}
+
+export interface GeneratedNode {
+  id: string;
+  name: string;
+  description: string;
+  designIntent: string;
+  parameters: string[];
+}
+
+export interface GeneratedConnection {
+  source: string;
+  target: string;
+  label: string;
+}
+
+export interface GeneratedProjectData {
+  nodes: GeneratedNode[];
+  connections: GeneratedConnection[];
 }
 
 export class AIClient {
@@ -154,22 +173,7 @@ export class AIClient {
   }
 
   async analyzeHAZOP(request: HAZOPAnalysisRequest): Promise<HAZOPAnalysisResponse> {
-    const userPrompt = `Analyze the following HAZOP deviation:
-
-Node: ${request.nodeName}
-${request.nodeDescription ? `Description: ${request.nodeDescription}` : ""}
-${request.designIntent ? `Design Intent: ${request.designIntent}` : ""}
-
-Parameter: ${request.parameter}
-Guide Word: ${request.guideWord}
-Deviation: ${request.guideWord} ${request.parameter}
-
-${request.existingDeviations?.length ? `
-Existing deviations for context:
-${request.existingDeviations.map(d => `- ${d.guideWord} ${d.parameter}: ${d.cause || "No cause specified"}`).join("\n")}
-` : ""}
-
-Provide a comprehensive HAZOP analysis in JSON format.`;
+    const userPrompt = `Analyze the following HAZOP deviation:\n\nNode: ${request.nodeName}\n${request.nodeDescription ? `Description: ${request.nodeDescription}` : ""}\n${request.designIntent ? `Design Intent: ${request.designIntent}` : ""}\n\nParameter: ${request.parameter}\nGuide Word: ${request.guideWord}\nDeviation: ${request.guideWord} ${request.parameter}\n\n${request.existingDeviations?.length ? `\nExisting deviations for context:\n${request.existingDeviations.map(d => `- ${d.guideWord} ${d.parameter}: ${d.cause || "No cause specified"}`).join("\n")}\n` : ""}\n\nProvide a comprehensive HAZOP analysis in JSON format.`;
 
     const messages: AIMessage[] = [
       { role: "system", content: HAZOP_SYSTEM_PROMPT },
@@ -192,4 +196,25 @@ Provide a comprehensive HAZOP analysis in JSON format.`;
       throw new Error("Failed to parse AI analysis response");
     }
   }
+
+  async generateNodes(projectDescription: string): Promise<GeneratedProjectData> {
+    const messages: AIMessage[] = [
+      { role: "system", content: NODE_GENERATION_SYSTEM_PROMPT },
+      { role: "user", content: `Generate HAZOP study nodes for the following process description:\n\n${projectDescription}` },
+    ];
+
+    const response = await this.chat(messages);
+    
+    try {
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      throw new Error("No valid JSON object found in response");
+    } catch (e) {
+      console.error("Failed to parse generated nodes:", response);
+      throw new Error("Failed to parse AI generated nodes");
+    }
+  }
 }
+

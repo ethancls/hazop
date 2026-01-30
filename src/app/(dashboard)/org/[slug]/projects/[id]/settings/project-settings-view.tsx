@@ -15,17 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { CriticalDeleteDialog } from "@/components/ui/critical-delete-dialog";
 import {
   ArrowLeft,
   Save,
@@ -34,7 +24,6 @@ import {
   Check,
   X,
   AlertTriangle,
-  Copy,
 } from "lucide-react";
 
 interface Project {
@@ -57,10 +46,7 @@ interface ProjectSettingsViewProps {
 export function ProjectSettingsView({ project, organizationSlug, userRole }: ProjectSettingsViewProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
-  const [deleteConfirmation, setDeleteConfirmation] = useState("");
-  const [copied, setCopied] = useState(false);
 
   const [form, setForm] = useState({
     name: project.name,
@@ -98,29 +84,14 @@ export function ProjectSettingsView({ project, organizationSlug, userRole }: Pro
   };
 
   const handleDelete = async () => {
-    if (deleteConfirmation !== project.name) return;
-    setDeleting(true);
+    const res = await fetch(`/api/projects/${project.id}`, {
+      method: "DELETE",
+    });
 
-    try {
-      const res = await fetch(`/api/projects/${project.id}`, {
-        method: "DELETE",
-      });
-
-      if (res.ok) {
-        router.push(`/org/${organizationSlug}`);
-        router.refresh();
-      }
-    } catch {
-      console.error("Failed to delete project");
-    } finally {
-      setDeleting(false);
+    if (res.ok) {
+      router.push(`/org/${organizationSlug}`);
+      router.refresh();
     }
-  };
-
-  const handleCopyName = () => {
-    navigator.clipboard.writeText(project.name);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -249,93 +220,49 @@ export function ProjectSettingsView({ project, organizationSlug, userRole }: Pro
         </Button>
       </div>
 
-      {/* Danger Zone */}
-      {canDelete && (
-        <Card className="border-destructive/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="h-5 w-5" />
-              Danger Zone
-            </CardTitle>
-            <CardDescription>
-              Irreversible actions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Delete project</p>
-                <p className="text-sm text-muted-foreground">
-                  Permanently delete this project and all its data
-                </p>
-              </div>
-              <AlertDialog onOpenChange={(open) => !open && setDeleteConfirmation("")}>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </Button>
-                </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Project?</AlertDialogTitle>
-                  <AlertDialogDescription asChild>
-                    <div className="space-y-4">
-                      <p>
-                        This will permanently delete <strong>{project.name}</strong> and all associated study nodes and deviations. This action cannot be undone.
+            {/* Danger Zone */}
+            {canDelete && (
+              <Card className="border-destructive/50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-destructive">
+                    <AlertTriangle className="h-5 w-5" />
+                    Danger Zone
+                  </CardTitle>
+                  <CardDescription>
+                    Irreversible actions
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Delete project</p>
+                      <p className="text-sm text-muted-foreground">
+                        Permanently delete this project and all its data
                       </p>
-                      <div className="space-y-2">
-                        <p className="text-sm">
-                          To confirm, type <strong>{project.name}</strong> below:
-                        </p>
-                        <div className="flex gap-2">
-                          <Input
-                            value={deleteConfirmation}
-                            onChange={(e) => setDeleteConfirmation(e.target.value)}
-                            placeholder={project.name}
-                            className="font-mono"
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            onClick={handleCopyName}
-                            title="Copy name"
-                          >
-                            {copied ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
                     </div>
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDelete}
-                    disabled={deleting || deleteConfirmation !== project.name}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    {deleting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Deleting...
-                      </>
-                    ) : (
-                      "Delete Project"
-                    )}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
-}
+                    <CriticalDeleteDialog
+                      title="Delete Project?"
+                      validationText={project.name}
+                      confirmButtonText="Delete Project"
+                      onConfirm={handleDelete}
+                      trigger={
+                        <Button variant="destructive">
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </Button>
+                      }
+                      description={
+                        <div className="space-y-4">
+                          <p>
+                            This will permanently delete <strong>{project.name}</strong> and all associated study nodes and deviations. This action cannot be undone.
+                          </p>
+                        </div>
+                      }
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        );
+      }

@@ -9,17 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { CriticalDeleteDialog } from "@/components/ui/critical-delete-dialog";
 import {
   Building2,
   Save,
@@ -30,7 +20,6 @@ import {
   AlertTriangle,
   Check,
   X,
-  Copy,
   Sparkles,
   ChevronRight,
 } from "lucide-react";
@@ -65,10 +54,7 @@ interface OrgSettingsViewProps {
 export function OrgSettingsView({ organization }: OrgSettingsViewProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
-  const [deleteConfirmation, setDeleteConfirmation] = useState("");
-  const [copied, setCopied] = useState(false);
 
   const [form, setForm] = useState({
     name: organization.name,
@@ -114,29 +100,18 @@ export function OrgSettingsView({ organization }: OrgSettingsViewProps) {
   };
 
   const handleDelete = async () => {
-    if (deleteConfirmation !== organization.name) return;
-    setDeleting(true);
+    const res = await fetch(`/api/organizations/${organization.id}`, {
+      method: "DELETE",
+    });
 
-    try {
-      const res = await fetch(`/api/organizations/${organization.id}`, {
-        method: "DELETE",
-      });
-
-      if (res.ok) {
-        router.push("/");
-        router.refresh();
-      }
-    } catch {
-      console.error("Failed to delete organization");
-    } finally {
-      setDeleting(false);
+    if (res.ok) {
+      router.push("/");
+      router.refresh();
     }
   };
 
   const handleCopyName = () => {
     navigator.clipboard.writeText(organization.name);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -364,75 +339,31 @@ export function OrgSettingsView({ organization }: OrgSettingsViewProps) {
                 Permanently delete this organization and all its data
               </p>
             </div>
-            <AlertDialog onOpenChange={(open) => !open && setDeleteConfirmation("")}>
-              <AlertDialogTrigger asChild>
+            <CriticalDeleteDialog
+              title="Delete Organization?"
+              validationText={organization.name}
+              confirmButtonText="Delete Organization"
+              onConfirm={handleDelete}
+              trigger={
                 <Button variant="destructive">
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Organization?</AlertDialogTitle>
-                  <AlertDialogDescription asChild>
-                    <div className="space-y-4">
-                      <p>
-                        This will permanently delete <strong>{organization.name}</strong> and all its data including:
-                      </p>
-                      <ul className="list-disc list-inside text-sm">
-                        <li>{organization._count.projects} projects</li>
-                        <li>{organization._count.members} member associations</li>
-                        <li>All nodes and deviations</li>
-                      </ul>
-                      <p>This action cannot be undone.</p>
-                      <div className="space-y-2">
-                        <p className="text-sm">
-                          To confirm, type <strong>{organization.name}</strong> below:
-                        </p>
-                        <div className="flex gap-2">
-                          <Input
-                            value={deleteConfirmation}
-                            onChange={(e) => setDeleteConfirmation(e.target.value)}
-                            placeholder={organization.name}
-                            className="font-mono"
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            onClick={handleCopyName}
-                            title="Copy name"
-                          >
-                            {copied ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDelete}
-                    disabled={deleting || deleteConfirmation !== organization.name}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    {deleting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Deleting...
-                      </>
-                    ) : (
-                      "Delete Organization"
-                    )}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              }
+              description={
+                <div className="space-y-4">
+                  <p>
+                    This will permanently delete <strong>{organization.name}</strong> and all its data including:
+                  </p>
+                  <ul className="list-disc list-inside text-sm">
+                    <li>{organization._count.projects} projects</li>
+                    <li>{organization._count.members} member associations</li>
+                    <li>All nodes and deviations</li>
+                  </ul>
+                  <p>This action cannot be undone.</p>
+                </div>
+              }
+            />
           </div>
         </CardContent>
       </Card>

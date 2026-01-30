@@ -30,6 +30,7 @@ import {
   ChevronRight,
   Workflow,
   ArrowLeft,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { NodeTemplate } from "@/lib/hazop/templates";
@@ -94,6 +95,7 @@ export function ProjectView({ project, organizationSlug, userRole }: ProjectView
   const [activeTab, setActiveTab] = useState("nodes");
   const [isAddingNode, setIsAddingNode] = useState(false);
   const [addingNode, setAddingNode] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [newNode, setNewNode] = useState({
     name: "",
     description: "",
@@ -106,6 +108,26 @@ export function ProjectView({ project, organizationSlug, userRole }: ProjectView
     0
   );
   const canEdit = userRole === "OWNER" || userRole === "ADMIN" || userRole === "MEMBER";
+
+  const handleGenerateNodes = async () => {
+    setIsGenerating(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/nodes/generate`, {
+        method: "POST",
+      });
+
+      if (res.ok) {
+        router.refresh();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to generate nodes");
+      }
+    } catch {
+      alert("Failed to connect to server");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const handleAddNode = async () => {
     setAddingNode(true);
@@ -374,15 +396,46 @@ export function ProjectView({ project, organizationSlug, userRole }: ProjectView
                   Add study nodes to start your HAZOP analysis. Each node represents a process equipment or section.
                 </p>
                 {canEdit && (
-                  <Button className="mt-4" onClick={() => setIsAddingNode(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add First Node
-                  </Button>
+                  <div className="flex items-center justify-center gap-2 mt-4">
+                    <Button onClick={() => setIsAddingNode(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add First Node
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={handleGenerateNodes}
+                      disabled={isGenerating}
+                    >
+                      {isGenerating ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4 mr-2 text-purple-500" />
+                      )}
+                      Generate with AI
+                    </Button>
+                  </div>
                 )}
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-4">
+              <div className="flex justify-end mb-4">
+                {canEdit && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleGenerateNodes}
+                    disabled={isGenerating}
+                  >
+                    {isGenerating ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 mr-2 text-purple-500" />
+                    )}
+                    Generate More with AI
+                  </Button>
+                )}
+              </div>
               {project.nodes.map((node) => (
                 <Card key={node.id}>
                   <Link href={`/org/${organizationSlug}/projects/${project.id}/nodes/${node.id}`}>

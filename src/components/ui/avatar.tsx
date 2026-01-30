@@ -41,18 +41,6 @@ function AvatarImage({
   src,
   ...props
 }: AvatarImageProps) {
-  // Validate that src is a valid image URL
-  const isValidImageUrl = src && (
-    src.startsWith("http://") || 
-    src.startsWith("https://") || 
-    src.startsWith("/") ||
-    src.startsWith("data:image/")
-  )
-
-  if (!isValidImageUrl) {
-    return null
-  }
-
   return (
     <AvatarPrimitive.Image
       data-slot="avatar-image"

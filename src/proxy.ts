@@ -8,7 +8,9 @@ const publicRoutes = [
   '/reset-password',
   '/api/auth/login',
   '/api/auth/register',
-  '/api/auth/logout'
+  '/api/auth/logout',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password'
 ];
 
 // Auth pages that logged-in users should be redirected away from

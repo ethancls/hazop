@@ -42,22 +42,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const node = await prisma.node.findUnique({
-      where: { id: nodeId },
-      include: {
-        deviations: {
-          select: {
-            parameter: true,
-            guideWord: true,
-            cause: true,
-            consequence: true,
+    let nodeData;
+
+    if (nodeId === "test") {
+      // Mock data for connection testing
+      nodeData = {
+        id: "test-node",
+        name: "Test Reactor Feed",
+        description: "A test node for verifying AI connection",
+        designIntent: "To deliver feed to the reactor at controlled flow and temperature",
+        deviations: []
+      };
+    } else {
+      const node = await prisma.node.findUnique({
+        where: { id: nodeId },
+        include: {
+          deviations: {
+            select: {
+              parameter: true,
+              guideWord: true,
+              cause: true,
+              consequence: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    if (!node) {
-      return NextResponse.json({ error: "Node not found" }, { status: 404 });
+      if (!node) {
+        return NextResponse.json({ error: "Node not found" }, { status: 404 });
+      }
+      nodeData = node;
     }
 
     const client = new AIClient({
@@ -67,13 +81,13 @@ export async function POST(request: NextRequest) {
     });
 
     const analysisRequest: HAZOPAnalysisRequest = {
-      nodeId: node.id,
-      nodeName: node.name,
-      nodeDescription: node.description || undefined,
-      designIntent: node.designIntent || undefined,
+      nodeId: nodeData.id,
+      nodeName: nodeData.name,
+      nodeDescription: nodeData.description || undefined,
+      designIntent: nodeData.designIntent || undefined,
       parameter,
       guideWord,
-      existingDeviations: node.deviations.map((d) => ({
+      existingDeviations: nodeData.deviations.map((d) => ({
         parameter: d.parameter,
         guideWord: d.guideWord,
         cause: d.cause ?? undefined,
