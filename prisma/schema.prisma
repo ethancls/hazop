@@ -1,0 +1,336 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// USER & AUTHENTICATION
+// ============================================================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  avatar        String?
+  passwordHash  String
+  platformRole  PlatformRole @default(USER)
+  isActive      Boolean   @default(true)
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  sessions      Session[]
+  memberships   OrganizationMember[]
+  teamMembers   TeamMember[]
+  invitationsSent Invitation[] @relation("InvitedBy")
+  projects      Project[]
+  deviations    Deviation[]
+  passwordResetTokens PasswordResetToken[]
+
+  @@index([email])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  userAgent String?
+  ipAddress String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+}
+
+enum PlatformRole {
+  SUPER_ADMIN
+  ADMIN
+  USER
+}
+
+// ============================================================================
+// ORGANIZATIONS
+// ============================================================================
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  logo        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  members     OrganizationMember[]
+  teams       Team[]
+  projects    Project[]
+  invitations Invitation[]
+  settings    OrganizationSettings?
+  aiSettings  AISettings?
+
+  @@index([slug])
+}
+
+model OrganizationMember {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  role           OrganizationRole @default(MEMBER)
+  joinedAt       DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+model OrganizationSettings {
+  id                   String  @id @default(cuid())
+  organizationId       String  @unique
+  allowMemberInvites   Boolean @default(false)
+  requireAdminApproval Boolean @default(false)
+  notifyOnMemberJoin   Boolean @default(true)
+  notifyOnProjectCreate Boolean @default(true)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================================
+// AI CONFIGURATION
+// ============================================================================
+
+model AISettings {
+  id             String      @id @default(cuid())
+  organizationId String      @unique
+  provider       AIProvider  @default(OPENAI)
+  apiKey         String?     // Encrypted API key
+  model          String?     // Model name (e.g., gpt-4, claude-3, gemini-pro)
+  enabled        Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+enum AIProvider {
+  OPENAI
+  ANTHROPIC
+  GOOGLE
+  OLLAMA
+}
+
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+// ============================================================================
+// TEAMS
+// ============================================================================
+
+model Team {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  color          String   @default("#3b82f6")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      TeamMember[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model TeamMember {
+  id       String   @id @default(cuid())
+  teamId   String
+  userId   String
+  role     TeamRole @default(MEMBER)
+  joinedAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+}
+
+enum TeamRole {
+  LEAD
+  MEMBER
+}
+
+// ============================================================================
+// INVITATIONS
+// ============================================================================
+
+model Invitation {
+  id             String   @id @default(cuid())
+  email          String
+  organizationId String
+  role           OrganizationRole @default(MEMBER)
+  token          String   @unique
+  status         InvitationStatus @default(PENDING)
+  invitedById    String
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    User         @relation("InvitedBy", fields: [invitedById], references: [id])
+
+  @@index([token])
+  @@index([email])
+  @@index([organizationId])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REVOKED
+  EXPIRED
+}
+
+// ============================================================================
+// HAZOP PROJECTS
+// ============================================================================
+
+model Project {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  status         ProjectStatus @default(DRAFT)
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation(fields: [createdById], references: [id])
+  nodes        Node[]
+
+  @@index([organizationId])
+  @@index([createdById])
+}
+
+enum ProjectStatus {
+  DRAFT
+  IN_PROGRESS
+  REVIEW
+  COMPLETED
+  ARCHIVED
+}
+
+// ============================================================================
+// HAZOP NODES & DEVIATIONS
+// ============================================================================
+
+model Node {
+  id           String   @id @default(cuid())
+  projectId    String
+  name         String
+  description  String?
+  designIntent String?
+  parameters   String?  // JSON string for flexible parameters
+  position     String?  // JSON string for flow diagram position {x, y}
+  nodeType     String?  // Template type: pump, vessel, heat_exchanger, valve, etc.
+  color        String?  // Node color for flow diagram
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  deviations Deviation[]
+  connections NodeConnection[] @relation("SourceNode")
+  incomingConnections NodeConnection[] @relation("TargetNode")
+
+  @@index([projectId])
+}
+
+model NodeConnection {
+  id        String   @id @default(cuid())
+  sourceId  String
+  targetId  String
+  label     String?  // Connection label (e.g., "Feed", "Product")
+  createdAt DateTime @default(now())
+
+  source Node @relation("SourceNode", fields: [sourceId], references: [id], onDelete: Cascade)
+  target Node @relation("TargetNode", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, targetId])
+  @@index([sourceId])
+  @@index([targetId])
+}
+
+model Deviation {
+  id             String   @id @default(cuid())
+  nodeId         String
+  guideWord      String   // NO, MORE, LESS, REVERSE, etc.
+  parameter      String   // Flow, Temperature, Pressure, etc.
+  deviation      String   // Computed: guideWord + parameter
+  cause          String?
+  consequence    String?
+  safeguards     String?
+  recommendations String?
+  likelihood     Int?     // 1-5
+  severity       Int?     // 1-5
+  riskLevel      RiskLevel?
+  status         DeviationStatus @default(OPEN)
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  node      Node @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([nodeId])
+  @@index([createdById])
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum DeviationStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  ACCEPTED
+  CLOSED
+}

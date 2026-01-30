@@ -1,0 +1,8 @@
+[00:00:01.100] Server  LOG     ✓ Ready in 828ms
+[00:00:04.357] Server  LOG     ○ Compiling /org/[slug]/projects/[id] ...
+[00:01:58.076] Browser ERROR   uncaughtError: TypeError: l.nodeName.toLowerCase is not a function. (In 'l.nodeName.toLowerCase()', 'l.nodeName.toLowerCase' is undefined)
+[00:01:58.076] Browser ERROR   uncaughtError: TypeError: l.nodeName.toLowerCase is not a function. (In 'l.nodeName.toLowerCase()', 'l.nodeName.toLowerCase' is undefined)
+[00:01:58.077] Browser ERROR   uncaughtError: TypeError: l.nodeName.toLowerCase is not a function. (In 'l.nodeName.toLowerCase()', 'l.nodeName.toLowerCase' is undefined)
+[00:01:58.261] Browser ERROR   uncaughtError: TypeError: l.nodeName.toLowerCase is not a function. (In 'l.nodeName.toLowerCase()', 'l.nodeName.toLowerCase' is undefined)
+[00:01:58.261] Browser ERROR   uncaughtError: TypeError: l.nodeName.toLowerCase is not a function. (In 'l.nodeName.toLowerCase()', 'l.nodeName.toLowerCase' is undefined)
+[00:01:59.072] Browser ERROR   uncaughtError: TypeError: l.nodeName.toLowerCase is not a function. (In 'l.nodeName.toLowerCase()', 'l.nodeName.toLowerCase' is undefined)
