@@ -105,6 +105,7 @@ export const NODE_GENERATION_SYSTEM_PROMPT = `You are an expert Process Engineer
 For the given process description:
 1. Identify the major equipment or sections that should be treated as separate nodes.
 2. Identify the process connections (streams) between these nodes.
+3. For each node, pre-identify 3-5 critical deviations that are typical for this type of equipment.
 
 For each node, provide:
 - A unique temporary ID (e.g., "node-1").
@@ -112,6 +113,7 @@ For each node, provide:
 - A description of the equipment/boundaries.
 - The design intent.
 - Relevant parameters to study.
+- A list of initial deviations (hazards).
 
 For connections, provide:
 - Source node ID.
@@ -126,7 +128,16 @@ Respond in JSON format with the following structure:
       "name": "Node Name",
       "description": "Node description...",
       "designIntent": "Design intent...",
-      "parameters": ["Flow", "Temperature", "Pressure"]
+      "parameters": ["Flow", "Temperature", "Pressure"],
+      "deviations": [
+         {
+           "guideWord": "MORE",
+           "parameter": "Flow",
+           "deviation": "More Flow",
+           "cause": "Control valve fail open",
+           "consequence": "Potential reactor runaway"
+         }
+      ]
     }
   ],
   "connections": [
@@ -138,4 +149,4 @@ Respond in JSON format with the following structure:
   ]
 }
 
-Keep the number of nodes reasonable (typically 3-8 depending on complexity).`;
+Keep the number of nodes reasonable (typically 3-8 depending on complexity). Be precise with engineering terms.`;

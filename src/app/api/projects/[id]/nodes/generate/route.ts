@@ -88,6 +88,24 @@ export async function POST(
       if (node.id) {
         idMap.set(node.id, createdNode.id);
       }
+
+      // Create generated deviations if any
+      if (node.deviations && node.deviations.length > 0) {
+        for (const dev of node.deviations) {
+           await prisma.deviation.create({
+             data: {
+               nodeId: createdNode.id,
+               guideWord: dev.guideWord,
+               parameter: dev.parameter,
+               deviation: dev.deviation || `${dev.guideWord} ${dev.parameter}`,
+               cause: dev.cause,
+               consequence: dev.consequence,
+               createdById: user.id,
+               status: "OPEN",
+             }
+           });
+        }
+      }
     }
 
     // Create connections

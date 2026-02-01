@@ -1,3 +1,0 @@
-{
-  "/(dashboard)/org/[slug]/members/page": "app/(dashboard)/org/[slug]/members/page.js"
-}

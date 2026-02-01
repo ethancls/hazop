@@ -15,6 +15,13 @@ export interface GeneratedNode {
   description: string;
   designIntent: string;
   parameters: string[];
+  deviations?: Array<{
+    guideWord: string;
+    parameter: string;
+    deviation: string;
+    cause: string;
+    consequence: string;
+  }>;
 }
 
 export interface GeneratedConnection {

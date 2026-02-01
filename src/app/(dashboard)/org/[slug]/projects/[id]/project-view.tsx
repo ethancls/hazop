@@ -18,6 +18,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import {
   Plus,
@@ -34,6 +44,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { NodeTemplate } from "@/lib/hazop/templates";
+import { cn } from "@/lib/utils";
 
 // Dynamic import for FlowDiagram to avoid SSR issues
 const FlowDiagram = dynamic(
@@ -96,6 +107,8 @@ export function ProjectView({ project, organizationSlug, userRole }: ProjectView
   const [isAddingNode, setIsAddingNode] = useState(false);
   const [addingNode, setAddingNode] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [nodeToDelete, setNodeToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [newNode, setNewNode] = useState({
     name: "",
     description: "",
@@ -198,16 +211,19 @@ export function ProjectView({ project, organizationSlug, userRole }: ProjectView
     }
   };
 
-  const handleDeleteNode = async (nodeId: string) => {
-    if (!confirm("Are you sure you want to delete this node?")) return;
-
+  const handleDeleteNode = async () => {
+    if (!nodeToDelete) return;
+    setIsDeleting(true);
     try {
-      await fetch(`/api/projects/${project.id}/nodes/${nodeId}`, {
+      await fetch(`/api/projects/${project.id}/nodes/${nodeToDelete}`, {
         method: "DELETE",
       });
       router.refresh();
+      setNodeToDelete(null);
     } catch {
       console.error("Failed to delete node");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -437,12 +453,15 @@ export function ProjectView({ project, organizationSlug, userRole }: ProjectView
                 )}
               </div>
               {project.nodes.map((node) => (
-                <Card key={node.id}>
+                <Card 
+                  key={node.id} 
+                  className="transition-all hover:shadow-md hover:border-primary/50 group"
+                >
                   <Link href={`/org/${organizationSlug}/projects/${project.id}/nodes/${node.id}`}>
-                    <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                    <CardHeader className="cursor-pointer">
                       <div className="flex items-start justify-between">
                         <div>
-                          <CardTitle className="text-base">{node.name}</CardTitle>
+                          <CardTitle className="text-base group-hover:text-primary transition-colors">{node.name}</CardTitle>
                           <CardDescription>{node.description || "No description"}</CardDescription>
                           {node.designIntent && (
                             <p className="text-xs text-muted-foreground mt-1">
@@ -458,17 +477,17 @@ export function ProjectView({ project, organizationSlug, userRole }: ProjectView
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                handleDeleteNode(node.id);
+                                setNodeToDelete(node.id);
                               }}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           )}
-                          <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                          <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                         </div>
                       </div>
                     </CardHeader>
@@ -711,6 +730,31 @@ export function ProjectView({ project, organizationSlug, userRole }: ProjectView
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!nodeToDelete} onOpenChange={(open) => !open && setNodeToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the study node
+              and all its associated deviations and connections.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+                onClick={handleDeleteNode} 
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={isDeleting}
+            >
+              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }

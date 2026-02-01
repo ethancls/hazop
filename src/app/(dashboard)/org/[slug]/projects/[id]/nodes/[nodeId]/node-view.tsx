@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Plus, Trash2, Loader2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Plus, AlertTriangle, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,14 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { StatusButton } from "@/components/ui/status-button";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 interface Deviation {
   id: string;
@@ -74,8 +69,9 @@ interface NodeViewProps {
 export function NodeView({ node: initialNode, project, organizationSlug, userRole }: NodeViewProps) {
   const router = useRouter();
   const [node, setNode] = useState(initialNode);
-  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [isAddingDeviation, setIsAddingDeviation] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
   
   // New Deviation State
   const [newDeviation, setNewDeviation] = useState({
@@ -91,7 +87,7 @@ export function NodeView({ node: initialNode, project, organizationSlug, userRol
   const canEdit = userRole === "OWNER" || userRole === "ADMIN" || userRole === "MEMBER";
 
   const handleSaveNode = async () => {
-    setIsSaving(true);
+    setSaveStatus("loading");
     try {
       const res = await fetch(`/api/projects/${project.id}/nodes/${node.id}`, {
         method: "PATCH",
@@ -104,12 +100,14 @@ export function NodeView({ node: initialNode, project, organizationSlug, userRol
       });
 
       if (res.ok) {
+        setSaveStatus("success");
         router.refresh();
+      } else {
+        setSaveStatus("error");
       }
     } catch (error) {
       console.error("Failed to save node", error);
-    } finally {
-      setIsSaving(false);
+      setSaveStatus("error");
     }
   };
 
@@ -132,7 +130,7 @@ export function NodeView({ node: initialNode, project, organizationSlug, userRol
             safeguards: "",
             recommendations: "",
         });
-        // Ideally we'd update local state or revalidate, refreshing for now
+        setShowAddDialog(false);
         router.refresh();
       }
     } catch (error) {
@@ -146,249 +144,292 @@ export function NodeView({ node: initialNode, project, organizationSlug, userRol
   const getRiskBadgeVariant = (level: string | null) => {
     switch (level) {
       case "CRITICAL": return "destructive";
-      case "HIGH": return "destructive"; // Or separate class if available
-      case "MEDIUM": return "secondary"; // Or warning color
-      case "LOW": return "outline"; // Or success color
+      case "HIGH": return "destructive";
+      case "MEDIUM": return "secondary"; // Using secondary (yellow-ish in some themes) or adjust theme
+      case "LOW": return "outline";
       default: return "outline";
     }
   };
 
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+        case "CLOSED": return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+        case "RESOLVED": return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+        case "OPEN": return <AlertCircle className="h-4 w-4 text-blue-500" />;
+        default: return <AlertCircle className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
+
   return (
-    <div className="p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
-      {/* Header & Breadcrumbs */}
-      <div className="flex flex-col gap-2">
-        <Link
-          href={`/org/${organizationSlug}/projects/${project.id}`}
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground w-fit"
-        >
-          <ArrowLeft className="mr-1 h-4 w-4" />
-          Back to Project: {project.name}
-        </Link>
-        <div className="flex items-start justify-between mt-2">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{node.name}</h1>
-            <p className="text-muted-foreground">Manage design intent and deviations</p>
-          </div>
-          {canEdit && (
-            <Button onClick={handleSaveNode} disabled={isSaving}>
-              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              Save Changes
-            </Button>
-          )}
+    <div className="min-h-screen bg-background pb-12">
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pt-4 pb-2">
+        <div className="flex h-14 items-center justify-between px-6 max-w-7xl mx-auto w-full">
+            <div className="flex flex-col gap-1">
+                <Link
+                    href={`/org/${organizationSlug}/projects/${project.id}`}
+                    className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                    <ArrowLeft className="mr-1 h-4 w-4" />
+                    Back to Project
+                </Link>
+                <div className="flex items-baseline gap-2">
+                    <h1 className="text-xl font-bold tracking-tight">{node.name}</h1>
+                </div>
+            </div>
+            {canEdit && (
+                <StatusButton 
+                    status={saveStatus} 
+                    onClick={handleSaveNode}
+                    onStatusReset={() => setSaveStatus("idle")}
+                />
+            )}
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Node Details Column */}
-        <div className="md:col-span-1 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Node Definition</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Node Name</Label>
-                <Input
-                  id="name"
-                  value={node.name}
-                  onChange={(e) => setNode({ ...node, name: e.target.value })}
-                  disabled={!canEdit}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={node.description || ""}
-                  onChange={(e) => setNode({ ...node, description: e.target.value })}
-                  disabled={!canEdit}
-                  className="min-h-[100px]"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="designIntent">Design Intent</Label>
-                <Textarea
-                  id="designIntent"
-                  value={node.designIntent || ""}
-                  onChange={(e) => setNode({ ...node, designIntent: e.target.value })}
-                  disabled={!canEdit}
-                  placeholder="Describe the intended function and operating parameters..."
-                  className="min-h-[150px]"
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Deviations Column */}
-        <div className="md:col-span-2 space-y-6">
-           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <div className="space-y-1">
-                <CardTitle>Deviations (HAZOP)</CardTitle>
-                <CardDescription>
-                  Analyze deviations from the design intent.
-                </CardDescription>
-              </div>
-              {canEdit && (
-                 <Dialog>
-                    <DialogTrigger asChild>
-                        <Button size="sm" variant="secondary">
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Deviation
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-2xl">
-                        <DialogHeader>
-                            <DialogTitle>Add New Deviation</DialogTitle>
-                            <DialogDescription>
-                                Identify a potential deviation and its causes/consequences.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Parameter</Label>
-                                    <Select 
-                                        value={newDeviation.parameter}
-                                        onValueChange={(val) => setNewDeviation({...newDeviation, parameter: val})}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select parameter" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Flow">Flow</SelectItem>
-                                            <SelectItem value="Pressure">Pressure</SelectItem>
-                                            <SelectItem value="Temperature">Temperature</SelectItem>
-                                            <SelectItem value="Level">Level</SelectItem>
-                                            <SelectItem value="Composition">Composition</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Guide Word</Label>
-                                    <Select 
-                                        value={newDeviation.guideWord}
-                                        onValueChange={(val) => setNewDeviation({...newDeviation, guideWord: val})}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select guide word" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="NO">NO / NONE</SelectItem>
-                                            <SelectItem value="MORE">MORE</SelectItem>
-                                            <SelectItem value="LESS">LESS</SelectItem>
-                                            <SelectItem value="AS WELL AS">AS WELL AS</SelectItem>
-                                            <SelectItem value="PART OF">PART OF</SelectItem>
-                                            <SelectItem value="REVERSE">REVERSE</SelectItem>
-                                            <SelectItem value="OTHER THAN">OTHER THAN</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                            
+      <div className="max-w-7xl mx-auto w-full px-6 py-6 space-y-8">
+        {/* Main Content Grid */}
+        <div className="grid gap-8 lg:grid-cols-12">
+            {/* Left Column: Node Definition */}
+            <div className="lg:col-span-4 space-y-6">
+                <div className="lg:sticky lg:top-32 space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">Node Definition</CardTitle>
+                            <CardDescription>Define the boundaries and intent of this node.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
                             <div className="space-y-2">
-                                <Label>Deviation Description</Label>
-                                <Input 
-                                    placeholder="e.g. No Flow of Cooling Water" 
-                                    value={newDeviation.deviation}
-                                    onChange={(e) => setNewDeviation({...newDeviation, deviation: e.target.value})}
+                                <Label htmlFor="name">Node Name</Label>
+                                <Input
+                                    id="name"
+                                    value={node.name}
+                                    onChange={(e) => setNode({ ...node, name: e.target.value })}
+                                    disabled={!canEdit}
                                 />
                             </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Cause</Label>
-                                    <Textarea 
-                                        placeholder="What causes this?" 
-                                        value={newDeviation.cause}
-                                        onChange={(e) => setNewDeviation({...newDeviation, cause: e.target.value})}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Consequence</Label>
-                                    <Textarea 
-                                        placeholder="What happens?" 
-                                        value={newDeviation.consequence}
-                                        onChange={(e) => setNewDeviation({...newDeviation, consequence: e.target.value})}
-                                    />
-                                </div>
-                            </div>
-
-                             <div className="space-y-2">
-                                <Label>Safeguards (Existing)</Label>
-                                <Textarea 
-                                    placeholder="What prevents/mitigates this?" 
-                                    value={newDeviation.safeguards}
-                                    onChange={(e) => setNewDeviation({...newDeviation, safeguards: e.target.value})}
-                                />
-                            </div>
-                            
                             <div className="space-y-2">
-                                <Label>Recommendations (Action Items)</Label>
-                                <Textarea 
-                                    placeholder="What should be done?" 
-                                    value={newDeviation.recommendations}
-                                    onChange={(e) => setNewDeviation({...newDeviation, recommendations: e.target.value})}
+                                <Label htmlFor="description">Description</Label>
+                                <Textarea
+                                    id="description"
+                                    value={node.description || ""}
+                                    onChange={(e) => setNode({ ...node, description: e.target.value })}
+                                    disabled={!canEdit}
+                                    className="min-h-[80px] resize-y"
                                 />
                             </div>
-                        </div>
-                        <DialogFooter>
-                             <Button onClick={handleAddDeviation} disabled={isAddingDeviation}>
-                                {isAddingDeviation ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
-                                Add Deviation
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                 </Dialog>
-              )}
-            </CardHeader>
-            <CardContent>
-                {node.deviations.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                        <AlertTriangle className="h-10 w-10 mx-auto mb-3 opacity-20" />
-                        <p>No deviations recorded for this node yet.</p>
-                        <p className="text-sm">Use the button above to start the analysis.</p>
+                            <div className="space-y-2">
+                                <Label htmlFor="designIntent">Design Intent</Label>
+                                <Textarea
+                                    id="designIntent"
+                                    value={node.designIntent || ""}
+                                    onChange={(e) => setNode({ ...node, designIntent: e.target.value })}
+                                    disabled={!canEdit}
+                                    placeholder="e.g. Transfer reactants from storage to reactor at 50kg/h and 25°C"
+                                    className="min-h-[120px] resize-y font-mono text-sm"
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+
+            {/* Right Column: Deviations */}
+            <div className="lg:col-span-8 space-y-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="text-lg font-semibold tracking-tight">Deviations</h2>
+                        <p className="text-sm text-muted-foreground">
+                            Identified hazards and operability issues for this node.
+                        </p>
                     </div>
+                    {canEdit && (
+                        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+                            <DialogTrigger asChild>
+                                <Button>
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add Deviation
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                                <DialogHeader>
+                                    <DialogTitle>Add New Deviation</DialogTitle>
+                                    <DialogDescription>
+                                        Identify a potential deviation and its causes/consequences.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-6 py-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label>Parameter</Label>
+                                            <Select 
+                                                value={newDeviation.parameter}
+                                                onValueChange={(val) => setNewDeviation({...newDeviation, parameter: val})}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select parameter" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Flow">Flow</SelectItem>
+                                                    <SelectItem value="Pressure">Pressure</SelectItem>
+                                                    <SelectItem value="Temperature">Temperature</SelectItem>
+                                                    <SelectItem value="Level">Level</SelectItem>
+                                                    <SelectItem value="Composition">Composition</SelectItem>
+                                                    <SelectItem value="Reaction">Reaction</SelectItem>
+                                                    <SelectItem value="Phase">Phase</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Guide Word</Label>
+                                            <Select 
+                                                value={newDeviation.guideWord}
+                                                onValueChange={(val) => setNewDeviation({...newDeviation, guideWord: val})}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select guide word" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="NO">NO / NONE</SelectItem>
+                                                    <SelectItem value="MORE">MORE</SelectItem>
+                                                    <SelectItem value="LESS">LESS</SelectItem>
+                                                    <SelectItem value="AS WELL AS">AS WELL AS</SelectItem>
+                                                    <SelectItem value="PART OF">PART OF</SelectItem>
+                                                    <SelectItem value="REVERSE">REVERSE</SelectItem>
+                                                    <SelectItem value="OTHER THAN">OTHER THAN</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="space-y-2">
+                                        <Label>Deviation Description</Label>
+                                        <Input 
+                                            placeholder="e.g. No Flow of Cooling Water" 
+                                            value={newDeviation.deviation}
+                                            onChange={(e) => setNewDeviation({...newDeviation, deviation: e.target.value})}
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <Label className="text-destructive/80">Cause</Label>
+                                            <Textarea 
+                                                placeholder="What causes this deviation?" 
+                                                value={newDeviation.cause}
+                                                onChange={(e) => setNewDeviation({...newDeviation, cause: e.target.value})}
+                                                className="min-h-[100px]"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-destructive/80">Consequence</Label>
+                                            <Textarea 
+                                                placeholder="What is the impact?" 
+                                                value={newDeviation.consequence}
+                                                onChange={(e) => setNewDeviation({...newDeviation, consequence: e.target.value})}
+                                                className="min-h-[100px]"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label className="text-green-600 dark:text-green-400">Safeguards (Existing)</Label>
+                                        <Textarea 
+                                            placeholder="What protections are already in place?" 
+                                            value={newDeviation.safeguards}
+                                            onChange={(e) => setNewDeviation({...newDeviation, safeguards: e.target.value})}
+                                        />
+                                    </div>
+                                    
+                                    <div className="space-y-2">
+                                        <Label className="text-blue-600 dark:text-blue-400">Recommendations (Action Items)</Label>
+                                        <Textarea 
+                                            placeholder="What else should be done?" 
+                                            value={newDeviation.recommendations}
+                                            onChange={(e) => setNewDeviation({...newDeviation, recommendations: e.target.value})}
+                                        />
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <StatusButton 
+                                        status={isAddingDeviation ? "loading" : "idle"}
+                                        onClick={handleAddDeviation}
+                                        idleText="Create Deviation"
+                                        loadingText="Creating..."
+                                        disabled={!newDeviation.parameter || !newDeviation.guideWord}
+                                    />
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    )}
+                </div>
+
+                {node.deviations.length === 0 ? (
+                    <Card className="border-dashed">
+                        <CardContent className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+                            <div className="rounded-full bg-muted p-3 mb-4">
+                                <AlertTriangle className="h-6 w-6 opacity-50" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-foreground">No deviations yet</h3>
+                            <p className="max-w-sm mt-2 text-sm">
+                                Start the HAZOP analysis by identifying potential deviations from the design intent.
+                            </p>
+                            {canEdit && (
+                                <Button variant="outline" className="mt-6" onClick={() => setShowAddDialog(true)}>
+                                    Add First Deviation
+                                </Button>
+                            )}
+                        </CardContent>
+                    </Card>
                 ) : (
                     <div className="space-y-4">
                         {node.deviations.map((dev) => (
-                            <div key={dev.id} className="border rounded-lg p-4 bg-card hover:bg-muted/30 transition-colors">
-                                <div className="flex items-start justify-between mb-3">
+                            <Card key={dev.id} className="overflow-hidden transition-all hover:shadow-md">
+                                <div className="border-b bg-muted/40 px-4 py-3 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <Badge variant="outline" className="bg-background text-sm font-medium">
+                                            {dev.guideWord} {dev.parameter}
+                                        </Badge>
+                                        <span className="text-sm font-medium text-muted-foreground">
+                                            {dev.deviation}
+                                        </span>
+                                    </div>
                                     <div className="flex items-center gap-2">
-                                        <Badge>{dev.guideWord}</Badge>
-                                        <Badge variant="outline">{dev.parameter}</Badge>
-                                        <span className="font-medium ml-2">{dev.deviation}</span>
-                                    </div>
-                                    <Badge variant={getRiskBadgeVariant(dev.riskLevel)}>
-                                        {dev.riskLevel || "Unrated"}
-                                    </Badge>
-                                </div>
-                                
-                                <div className="grid md:grid-cols-2 gap-4 text-sm">
-                                    <div>
-                                        <span className="font-semibold text-muted-foreground block text-xs uppercase mb-1">Causes</span>
-                                        <p className="text-foreground/90">{dev.cause || "—"}</p>
-                                    </div>
-                                    <div>
-                                        <span className="font-semibold text-muted-foreground block text-xs uppercase mb-1">Consequences</span>
-                                        <p className="text-foreground/90">{dev.consequence || "—"}</p>
-                                    </div>
-                                    <div>
-                                        <span className="font-semibold text-muted-foreground block text-xs uppercase mb-1">Safeguards</span>
-                                        <p className="text-foreground/90">{dev.safeguards || "—"}</p>
-                                    </div>
-                                    <div>
-                                        <span className="font-semibold text-muted-foreground block text-xs uppercase mb-1">Recommendations</span>
-                                        <p className="text-foreground/90">{dev.recommendations || "—"}</p>
+                                        <Badge variant={getRiskBadgeVariant(dev.riskLevel)} className="text-[10px] uppercase">
+                                            {dev.riskLevel || "Unrated"}
+                                        </Badge>
+                                        <Badge variant="secondary" className="text-[10px] uppercase">
+                                            {dev.status.replace("_", " ")}
+                                        </Badge>
                                     </div>
                                 </div>
-                            </div>
+                                <CardContent className="p-4 grid md:grid-cols-2 gap-6 text-sm">
+                                    <div className="space-y-4">
+                                        <div>
+                                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Causes</span>
+                                            <p className="text-foreground/90 leading-relaxed">{dev.cause || "—"}</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Consequences</span>
+                                            <p className="text-foreground/90 leading-relaxed">{dev.consequence || "—"}</p>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Safeguards</span>
+                                            <p className="text-foreground/90 leading-relaxed">{dev.safeguards || "—"}</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Recommendations</span>
+                                            <p className="text-foreground/90 leading-relaxed">{dev.recommendations || "—"}</p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
                         ))}
                     </div>
                 )}
-            </CardContent>
-           </Card>
+            </div>
         </div>
       </div>
     </div>

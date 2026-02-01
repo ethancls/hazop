@@ -29,38 +29,43 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Save, Loader2 } from "lucide-react";
+import { Plus, Save, Loader2, Maximize2, Minimize2 } from "lucide-react";
 import { NODE_TEMPLATES, NODE_CATEGORIES, NodeTemplate } from "@/lib/hazop/templates";
+import { cn } from "@/lib/utils";
 
 // Custom Node Component
 function HAZOPNode({ data, selected }: { data: HAZOPNodeData; selected: boolean }) {
   return (
     <div
-      className={`
-        px-4 py-3 bg-card border-2 rounded-lg shadow-sm min-w-40 transition-all
-        ${selected ? "ring-2 ring-primary ring-offset-2" : ""}
-      `}
-      style={{ borderColor: data.color || "#3b82f6" }}
+      className={cn(
+        "px-4 py-3 bg-card border rounded-lg shadow-sm min-w-[180px] max-w-[250px] transition-all",
+        selected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:border-primary/50"
+      )}
+      style={{ borderColor: selected ? undefined : (data.color || "#3b82f6") }}
     >
-      <div className="flex items-center gap-2 mb-1">
+      <div className="flex items-center gap-2 mb-2">
         {data.nodeType && (
           <Badge
             variant="outline"
-            className="text-xs"
-            style={{ borderColor: data.color, color: data.color }}
+            className="text-[10px] h-5 px-1.5 uppercase tracking-wider"
+            style={{ 
+              borderColor: data.color, 
+              color: data.color,
+              backgroundColor: `${data.color}15` 
+            }}
           >
             {data.nodeType}
           </Badge>
         )}
       </div>
-      <p className="font-medium text-sm">{data.label}</p>
+      <p className="font-semibold text-sm leading-tight break-words text-foreground">{data.label}</p>
       {data.description && (
-        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+        <p className="text-xs text-muted-foreground mt-1.5 line-clamp-3 leading-relaxed break-words">
           {data.description}
         </p>
       )}
-      <div className="flex items-center gap-2 mt-2">
-        <Badge variant="secondary" className="text-xs">
+      <div className="flex items-center gap-2 mt-3 pt-2 border-t border-border/50">
+        <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
           {data.deviationCount} deviations
         </Badge>
       </div>
@@ -108,11 +113,12 @@ export function FlowDiagram({
 }: FlowDiagramProps) {
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Convert HAZOP nodes to React Flow nodes
   const initialNodes = useMemo(() => {
     return nodes.map((node, index) => {
-      const position = node.position ? JSON.parse(node.position) : { x: 100 + index * 200, y: 100 };
+      const position = node.position ? JSON.parse(node.position) : { x: 100 + index * 250, y: 100 };
       return {
         id: node.id,
         type: "hazop",
@@ -145,6 +151,7 @@ export function FlowDiagram({
             type: "smoothstep",
             animated: true,
             markerEnd: { type: MarkerType.ArrowClosed },
+            style: { strokeWidth: 2 },
           },
           eds
         )
@@ -195,8 +202,19 @@ export function FlowDiagram({
     onAddNode(template, position);
   };
 
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
+
   return (
-    <div className="h-150 border rounded-lg overflow-hidden bg-background">
+    <div 
+      className={cn(
+        "border rounded-lg overflow-hidden bg-background transition-all duration-300",
+        isFullscreen 
+          ? "fixed inset-0 z-50 h-screen w-screen rounded-none border-0" 
+          : "h-[600px] relative"
+      )}
+    >
       <ReactFlow
         nodes={flowNodes}
         edges={edges}
@@ -209,29 +227,46 @@ export function FlowDiagram({
         nodesDraggable={canEdit}
         nodesConnectable={canEdit}
         elementsSelectable={canEdit}
+        minZoom={0.1}
+        maxZoom={4}
         defaultEdgeOptions={{
           type: "smoothstep",
           animated: true,
           markerEnd: { type: MarkerType.ArrowClosed },
+          style: { strokeWidth: 2, stroke: "hsl(var(--foreground))" },
         }}
+        className={cn(isFullscreen && "bg-background")}
       >
-        <Background />
-        <Controls />
+        <Background gap={20} size={1} color="currentColor" className="opacity-5 text-foreground" />
+        <Controls className="bg-background border-border fill-foreground text-foreground" />
         <MiniMap
           nodeColor={(node) => (node.data as HAZOPNodeData).color || "#3b82f6"}
-          maskColor="rgba(0, 0, 0, 0.1)"
+          maskColor="rgba(var(--background), 0.8)"
+          className="bg-background border-border"
         />
+
+        <Panel position="top-right" className="flex gap-2">
+            <Button 
+                size="icon" 
+                variant="outline" 
+                onClick={toggleFullscreen}
+                className="bg-background/80 backdrop-blur-sm hover:bg-background"
+                title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            >
+                {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            </Button>
+        </Panel>
 
         {canEdit && (
           <Panel position="top-left" className="flex gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="sm">
+                <Button size="sm" className="shadow-sm">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Node
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-64 max-h-96 overflow-y-auto">
+              <DropdownMenuContent className="w-64 max-h-96 overflow-y-auto z-50">
                 {NODE_CATEGORIES.map((category) => (
                   <DropdownMenuGroup key={category.id}>
                     <DropdownMenuLabel className="flex items-center gap-2">
@@ -246,6 +281,7 @@ export function FlowDiagram({
                         <DropdownMenuItem
                           key={template.id}
                           onClick={() => handleAddFromTemplate(template)}
+                          className="cursor-pointer"
                         >
                           <div className="flex-1">
                             <p className="font-medium">{template.name}</p>
@@ -263,7 +299,7 @@ export function FlowDiagram({
             </DropdownMenu>
 
             {hasChanges && (
-              <Button size="sm" variant="outline" onClick={handleSave} disabled={saving}>
+              <Button size="sm" variant="outline" onClick={handleSave} disabled={saving} className="bg-background/80 backdrop-blur-sm">
                 {saving ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -282,7 +318,7 @@ export function FlowDiagram({
 
         {flowNodes.length === 0 && (
           <Panel position="top-center" className="mt-32">
-            <div className="text-center p-8 bg-card rounded-lg border shadow-sm">
+            <div className="text-center p-8 bg-card rounded-lg border shadow-sm max-w-sm mx-auto">
               <p className="text-lg font-medium mb-2">No nodes yet</p>
               <p className="text-sm text-muted-foreground mb-4">
                 Add your first process node to start building the flow diagram
