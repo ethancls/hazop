@@ -14,13 +14,20 @@ export async function GET(
 
     const { id: projectId } = await params;
 
-    // Verify project ownership
+    // Verify user has access to project through organization membership
     const project = await prisma.project.findFirst({
-      where: { id: projectId, createdById: user.id },
+      where: {
+        id: projectId,
+        organization: {
+          members: {
+            some: { userId: user.id },
+          },
+        },
+      },
     });
 
     if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Project not found or insufficient permissions' }, { status: 404 });
     }
 
     const nodes = await prisma.node.findMany({
@@ -51,13 +58,23 @@ export async function POST(
     const { id: projectId } = await params;
     const { name, description, designIntent, nodeType, color, parameters, position } = await request.json();
 
-    // Verify project ownership
+    // Verify user has access to project through organization membership
     const project = await prisma.project.findFirst({
-      where: { id: projectId, createdById: user.id },
+      where: {
+        id: projectId,
+        organization: {
+          members: {
+            some: {
+              userId: user.id,
+              role: { in: ['OWNER', 'ADMIN', 'MEMBER'] },
+            },
+          },
+        },
+      },
     });
 
     if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Project not found or insufficient permissions' }, { status: 404 });
     }
 
     if (!name) {

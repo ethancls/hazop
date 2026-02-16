@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { StatusButton } from "@/components/ui/status-button";
 import {
   Select,
   SelectContent,
@@ -18,11 +19,7 @@ import {
 import { CriticalDeleteDialog } from "@/components/ui/critical-delete-dialog";
 import {
   ArrowLeft,
-  Save,
-  Loader2,
   Trash2,
-  Check,
-  X,
   AlertTriangle,
 } from "lucide-react";
 
@@ -189,35 +186,13 @@ export function ProjectSettingsView({ project, organizationSlug, userRole }: Pro
 
       {/* Save Button */}
       <div className="flex justify-end gap-3 items-center">
-        {saveStatus === "error" && (
-          <span className="text-sm text-destructive flex items-center gap-1">
-            <X className="h-4 w-4" />
-            Failed to save
-          </span>
-        )}
-        <Button 
-          onClick={handleSave} 
-          disabled={saving}
-          variant={saveStatus === "success" ? "outline" : "default"}
-          className={saveStatus === "success" ? "text-green-600 border-green-600 dark:text-green-400 dark:border-green-400" : ""}
-        >
-          {saving ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Saving...
-            </>
-          ) : saveStatus === "success" ? (
-            <>
-              <Check className="h-4 w-4 mr-2" />
-              Saved
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4 mr-2" />
-              Save Changes
-            </>
-          )}
-        </Button>
+        <StatusButton
+          onClick={handleSave}
+          status={saving ? "loading" : saveStatus}
+          loadingText="Saving..."
+          successText="Saved"
+          idleText="Save Changes"
+        />
       </div>
 
             {/* Danger Zone */}

@@ -57,6 +57,7 @@ export async function POST(
       provider: aiSettings.provider,
       apiKey: aiSettings.apiKey || "", // Ollama might not need a key
       model: aiSettings.model || undefined,
+      baseUrl: aiSettings.baseUrl || undefined,
     });
 
     // Use project description or name if description is empty

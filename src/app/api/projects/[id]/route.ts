@@ -15,7 +15,14 @@ export async function GET(
     const { id } = await params;
 
     const project = await prisma.project.findFirst({
-      where: { id, createdById: user.id },
+      where: {
+        id,
+        organization: {
+          members: {
+            some: { userId: user.id },
+          },
+        },
+      },
       include: {
         nodes: {
           include: {
@@ -23,13 +30,13 @@ export async function GET(
           },
         },
         _count: {
-          select: { nodes: true, deviations: true },
+          select: { nodes: true },
         },
       },
     });
 
     if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Project not found or insufficient permissions' }, { status: 404 });
     }
 
     return NextResponse.json({ project });
@@ -52,13 +59,23 @@ export async function PATCH(
     const { id } = await params;
     const data = await request.json();
 
-    // Verify ownership
+    // Verify user has access through organization membership
     const existing = await prisma.project.findFirst({
-      where: { id, createdById: user.id },
+      where: {
+        id,
+        organization: {
+          members: {
+            some: {
+              userId: user.id,
+              role: { in: ['OWNER', 'ADMIN', 'MEMBER'] },
+            },
+          },
+        },
+      },
     });
 
     if (!existing) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Project not found or insufficient permissions' }, { status: 404 });
     }
 
     const project = await prisma.project.update({
@@ -67,7 +84,6 @@ export async function PATCH(
         name: data.name,
         description: data.description,
         processDescription: data.processDescription,
-        pfdReference: data.pfdReference,
         status: data.status,
       },
     });
@@ -91,13 +107,23 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Verify ownership
+    // Verify user has admin access through organization membership (only OWNER/ADMIN can delete)
     const existing = await prisma.project.findFirst({
-      where: { id, createdById: user.id },
+      where: {
+        id,
+        organization: {
+          members: {
+            some: {
+              userId: user.id,
+              role: { in: ['OWNER', 'ADMIN'] },
+            },
+          },
+        },
+      },
     });
 
     if (!existing) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Project not found or insufficient permissions' }, { status: 404 });
     }
 
     await prisma.project.delete({ where: { id } });

@@ -15,8 +15,11 @@ import {
   NodeTypes,
   MarkerType,
   ConnectionMode,
+  Handle,
+  Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,16 +41,22 @@ function HAZOPNode({ data, selected }: { data: HAZOPNodeData; selected: boolean 
   return (
     <div
       className={cn(
-        "px-4 py-3 bg-card border rounded-lg shadow-sm min-w-[180px] max-w-[250px] transition-all",
+        "px-3 py-2 sm:px-4 sm:py-3 bg-card border rounded-lg shadow-sm min-w-35 max-w-50 sm:min-w-45 sm:max-w-62 transition-all relative",
         selected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:border-primary/50"
       )}
       style={{ borderColor: selected ? undefined : (data.color || "#3b82f6") }}
     >
-      <div className="flex items-center gap-2 mb-2">
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="w-3! h-3! bg-primary! border-2! border-background!"
+        style={{ width: 12, height: 12, background: 'hsl(var(--primary))', border: '2px solid hsl(var(--background))' }}
+      />
+      <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
         {data.nodeType && (
           <Badge
             variant="outline"
-            className="text-[10px] h-5 px-1.5 uppercase tracking-wider"
+            className="text-[9px] sm:text-[10px] h-4 sm:h-5 px-1 sm:px-1.5 uppercase tracking-wider"
             style={{ 
               borderColor: data.color, 
               color: data.color,
@@ -58,17 +67,23 @@ function HAZOPNode({ data, selected }: { data: HAZOPNodeData; selected: boolean 
           </Badge>
         )}
       </div>
-      <p className="font-semibold text-sm leading-tight break-words text-foreground">{data.label}</p>
+      <p className="font-semibold text-xs sm:text-sm leading-tight wrap-break-word text-foreground line-clamp-2">{data.label}</p>
       {data.description && (
-        <p className="text-xs text-muted-foreground mt-1.5 line-clamp-3 leading-relaxed break-words">
+        <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-1.5 line-clamp-2 leading-relaxed wrap-break-word">
           {data.description}
         </p>
       )}
-      <div className="flex items-center gap-2 mt-3 pt-2 border-t border-border/50">
-        <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
-          {data.deviationCount} deviations
+      <div className="flex items-center gap-2 mt-2 sm:mt-3 pt-1.5 sm:pt-2 border-t border-border/50">
+        <Badge variant="secondary" className="text-[9px] sm:text-[10px] h-4 sm:h-5 px-1 sm:px-1.5">
+          {data.deviationCount} dev.
         </Badge>
       </div>
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="w-3! h-3! bg-primary! border-2! border-background!"
+        style={{ width: 12, height: 12, background: 'hsl(var(--primary))', border: '2px solid hsl(var(--background))' }}
+      />
     </div>
   );
 }
@@ -111,6 +126,7 @@ export function FlowDiagram({
   onSavePositions,
   onSaveConnections,
 }: FlowDiagramProps) {
+  const { resolvedTheme } = useTheme();
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -212,7 +228,7 @@ export function FlowDiagram({
         "border rounded-lg overflow-hidden bg-background transition-all duration-300",
         isFullscreen 
           ? "fixed inset-0 z-50 h-screen w-screen rounded-none border-0" 
-          : "h-[600px] relative"
+          : "h-96 sm:h-125 lg:h-150 relative"
       )}
     >
       <ReactFlow
@@ -224,24 +240,30 @@ export function FlowDiagram({
         nodeTypes={nodeTypes}
         connectionMode={ConnectionMode.Loose}
         fitView
+        fitViewOptions={{ padding: 0.2 }}
+        defaultViewport={{ x: 0, y: 0, zoom: 0.6 }}
+        colorMode={resolvedTheme === 'dark' ? 'dark' : 'light'}
         nodesDraggable={canEdit}
         nodesConnectable={canEdit}
         elementsSelectable={canEdit}
         minZoom={0.1}
         maxZoom={4}
+        connectionLineStyle={{ stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
         defaultEdgeOptions={{
           type: "smoothstep",
           animated: true,
           markerEnd: { type: MarkerType.ArrowClosed },
-          style: { strokeWidth: 2, stroke: "hsl(var(--foreground))" },
+          style: { strokeWidth: 2, stroke: "hsl(var(--primary))" },
         }}
-        className={cn(isFullscreen && "bg-background")}
+        proOptions={{ hideAttribution: true }}
+        className={cn("bg-background", isFullscreen && "bg-background")}
       >
         <Background gap={20} size={1} color="currentColor" className="opacity-5 text-foreground" />
         <Controls className="bg-background border-border fill-foreground text-foreground" />
         <MiniMap
           nodeColor={(node) => (node.data as HAZOPNodeData).color || "#3b82f6"}
-          maskColor="rgba(var(--background), 0.8)"
+          maskColor={resolvedTheme === 'dark' ? 'rgba(0, 0, 0, 0.6)' : 'rgba(0, 0, 0, 0.2)'}
+          bgColor={resolvedTheme === 'dark' ? 'hsl(var(--card))' : undefined}
           className="bg-background border-border"
         />
 

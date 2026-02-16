@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { proxyLogger } from './lib/logger';
 
 // Routes publiques qui ne nécessitent pas d'authentification
 const publicRoutes = [
@@ -16,15 +17,18 @@ const publicRoutes = [
 // Auth pages that logged-in users should be redirected away from
 const AUTH_PAGES = ['/login', '/register', '/forgot-password', '/reset-password'];
 
-// Routes API qui nécessitent une authentification
+// Routes API qui nécessitent une authenppntification
 const protectedApiPrefixes = ['/api/'];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionToken = request.cookies.get('session')?.value;
 
+  proxyLogger.debug(`Request to ${pathname}`, { hasSession: !!sessionToken });
+
   // Redirect authenticated users away from auth pages
   if (sessionToken && AUTH_PAGES.some(page => pathname === page || pathname.startsWith(page + '/'))) {
+    proxyLogger.debug(`Redirecting authenticated user from ${pathname} to /`);
     return NextResponse.redirect(new URL('/', request.url));
   }
   
@@ -45,12 +49,14 @@ export function proxy(request: NextRequest) {
   if (!sessionToken) {
     // Redirect to login for pages, return 401 for API routes
     if (protectedApiPrefixes.some(prefix => pathname.startsWith(prefix))) {
+      proxyLogger.debug(`No session for API route ${pathname}, returning 401`);
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       );
     }
     
+    proxyLogger.debug(`No session, redirecting from ${pathname} to /login`);
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);

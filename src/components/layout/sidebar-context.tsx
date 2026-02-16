@@ -13,16 +13,17 @@ interface SidebarContextType {
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 
 export function SidebarProvider({ children }: { children: ReactNode }) {
-  const [isCollapsed, setIsCollapsedState] = useState(false);
+  // Initialize state from localStorage during render (before effects)
+  const [isCollapsed, setIsCollapsedState] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    return stored === "true";
+  });
   const [isHydrated, setIsHydrated] = useState(false);
 
-  // Load initial state from localStorage
+  // Mark as hydrated after mount
   useEffect(() => {
-    const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-    if (stored !== null) {
-      setIsCollapsedState(stored === "true");
-    }
-    setIsHydrated(true);
+    queueMicrotask(() => setIsHydrated(true));
   }, []);
 
   // Persist state to localStorage

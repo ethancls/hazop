@@ -8,6 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { StatusButton } from "@/components/ui/status-button";
+import { PageContainer } from "@/components/ui/page-container";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   Select,
   SelectContent,
@@ -19,13 +22,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   ArrowLeft,
   Sparkles,
-  Save,
   Loader2,
-  Check,
   Eye,
   EyeOff,
   AlertTriangle,
   ExternalLink,
+  Check,
 } from "lucide-react";
 import { AI_PROVIDERS, AIProvider } from "@/lib/ai/providers";
 
@@ -34,6 +36,7 @@ interface AISettings {
   provider: string;
   apiKey: string | null;
   model: string | null;
+  baseUrl: string | null;
   enabled: boolean;
 }
 
@@ -58,6 +61,7 @@ export function AISettingsView({ organization, aiSettings }: AISettingsViewProps
     provider: (aiSettings?.provider as AIProvider) || "OPENAI",
     apiKey: "",
     model: aiSettings?.model || "",
+    baseUrl: aiSettings?.baseUrl || "",
     enabled: aiSettings?.enabled || false,
   });
 
@@ -69,6 +73,16 @@ export function AISettingsView({ organization, aiSettings }: AISettingsViewProps
       setSettings((prev) => ({ ...prev, model: currentProvider.defaultModel }));
     }
   }, [settings.provider, settings.model, currentProvider]);
+
+  // Set default baseUrl for Ollama if not set
+  useEffect(() => {
+    if (settings.provider === "OLLAMA" && !settings.baseUrl) {
+      setSettings((prev) => ({ 
+        ...prev, 
+        baseUrl: currentProvider.baseUrl || "http://localhost:11434" 
+      }));
+    }
+  }, [settings.provider, settings.baseUrl, currentProvider]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -82,6 +96,7 @@ export function AISettingsView({ organization, aiSettings }: AISettingsViewProps
           provider: settings.provider,
           apiKey: settings.apiKey || undefined, // Only send if changed
           model: settings.model,
+          baseUrl: settings.baseUrl || undefined,
           enabled: settings.enabled,
         }),
       });
@@ -146,28 +161,13 @@ export function AISettingsView({ organization, aiSettings }: AISettingsViewProps
   };
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
-      {/* Header */}
-      <div>
-        <Link
-          href={`/org/${organization.slug}/settings`}
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-2"
-        >
-          <ArrowLeft className="mr-1 h-4 w-4" />
-          Back to settings
-        </Link>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-            <Sparkles className="h-5 w-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">AI Configuration</h1>
-            <p className="text-muted-foreground">
-              Configure AI-powered HAZOP analysis for {organization.name}
-            </p>
-          </div>
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="AI Configuration"
+        description={`Configure AI-powered HAZOP analysis for ${organization.name}`}
+        backHref={`/org/${organization.slug}/settings`}
+        backLabel="Back to settings"
+      />
 
       {/* Provider Selection */}
       <Card>
@@ -275,6 +275,23 @@ export function AISettingsView({ organization, aiSettings }: AISettingsViewProps
                 </Alert>
               )}
             </div>
+
+            {settings.provider === "OLLAMA" && (
+              <div className="space-y-2">
+                <Label>Ollama Server URL</Label>
+                <Input
+                  type="text"
+                  placeholder="http://localhost:11434"
+                  value={settings.baseUrl}
+                  onChange={(e) =>
+                    setSettings((prev) => ({ ...prev, baseUrl: e.target.value }))
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  The URL where your Ollama server is running (default: http://localhost:11434)
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -336,29 +353,14 @@ export function AISettingsView({ organization, aiSettings }: AISettingsViewProps
           )}
         </div>
 
-        <Button
+        <StatusButton
           onClick={handleSave}
-          disabled={saving}
-          className={saveStatus === "success" ? "bg-green-600 hover:bg-green-600" : ""}
-        >
-          {saving ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Saving...
-            </>
-          ) : saveStatus === "success" ? (
-            <>
-              <Check className="h-4 w-4 mr-2" />
-              Saved
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4 mr-2" />
-              Save Changes
-            </>
-          )}
-        </Button>
+          status={saving ? "loading" : saveStatus}
+          loadingText="Saving..."
+          successText="Saved"
+          idleText="Save Changes"
+        />
       </div>
-    </div>
+    </PageContainer>
   );
 }

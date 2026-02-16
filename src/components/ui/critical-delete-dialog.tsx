@@ -15,7 +15,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Check, Copy, Loader2, Trash2 } from "lucide-react"
-import { cn } from "@/lib/utils"
 
 interface CriticalDeleteDialogProps {
   title: string

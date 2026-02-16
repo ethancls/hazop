@@ -48,11 +48,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PageContainer } from "@/components/ui/page-container";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   Users,
   Plus,
   Mail,
-  MoreHorizontal,
   Trash2,
   Loader2,
   Clock,
@@ -198,17 +199,6 @@ export function OrgMembersView({
     }
   };
 
-  const getRoleBadgeVariant = (role: string) => {
-    switch (role) {
-      case "OWNER":
-        return "default";
-      case "ADMIN":
-        return "secondary";
-      default:
-        return "outline";
-    }
-  };
-
   const getRoleIcon = (role: string) => {
     switch (role) {
       case "OWNER":
@@ -240,16 +230,11 @@ export function OrgMembersView({
   ];
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Members</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage team members for {organization.name}
-          </p>
-        </div>
-        {isAdmin && (
+    <PageContainer>
+      <PageHeader
+        title="Members"
+        description={`Manage team members for ${organization.name}`}
+        actions={isAdmin ? (
           <Dialog open={isInviting} onOpenChange={setIsInviting}>
             <DialogTrigger asChild>
               <Button>
@@ -311,8 +296,8 @@ export function OrgMembersView({
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        )}
-      </div>
+        ) : undefined}
+      />
 
       {/* Members Table */}
       <Card>
@@ -518,6 +503,6 @@ export function OrgMembersView({
           </CardContent>
         </Card>
       )}
-    </div>
+    </PageContainer>
   );
 }

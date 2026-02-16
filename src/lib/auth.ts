@@ -2,16 +2,18 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import prisma from './db';
-import type { User, Session } from '@prisma/client';
+import type { Session } from '@prisma/client';
+import { env } from './env';
+import { authLogger } from './logger';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'hazop-labs-secret-key-change-in-production';
+const JWT_SECRET = env.JWT_SECRET;
 const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export type SessionUser = {
   id: string;
   email: string;
   name: string;
-  avatar?: string | null;
+  avatar?: string;
   platformRole: string;
 };
 
@@ -76,23 +78,36 @@ export async function getSessionFromCookie(): Promise<Session | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get('session')?.value;
   
-  if (!token) return null;
+  if (!token) {
+    authLogger.debug('No session cookie found');
+    return null;
+  }
 
   const session = await prisma.session.findUnique({
     where: { token },
   });
 
-  if (!session || session.expiresAt < new Date()) {
-    if (session) await deleteSession(token);
+  if (!session) {
+    authLogger.warn('Session token not found in database');
     return null;
   }
 
+  if (session.expiresAt < new Date()) {
+    authLogger.debug('Session expired', { sessionId: session.id });
+    await deleteSession(token);
+    return null;
+  }
+
+  authLogger.debug('Valid session found', { userId: session.userId });
   return session;
 }
 
 export async function getCurrentUser(): Promise<SessionUser | null> {
   const session = await getSessionFromCookie();
-  if (!session) return null;
+  if (!session) {
+    authLogger.debug('No session for getCurrentUser');
+    return null;
+  }
 
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
@@ -105,7 +120,15 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
     },
   });
 
-  return user;
+  if (!user) return null;
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    avatar: user.avatar || undefined,
+    platformRole: user.platformRole,
+  };
 }
 
 // ============================================================================

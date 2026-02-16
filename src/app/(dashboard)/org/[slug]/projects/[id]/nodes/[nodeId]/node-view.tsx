@@ -3,15 +3,18 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, AlertTriangle, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Plus, AlertTriangle, GitBranch, FileText, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { StatusButton } from "@/components/ui/status-button";
+import { PageContainer } from "@/components/ui/page-container";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatsCard, StatsGrid } from "@/components/ui/stats-card";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -28,8 +31,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
 
 interface Deviation {
   id: string;
@@ -145,112 +146,127 @@ export function NodeView({ node: initialNode, project, organizationSlug, userRol
     switch (level) {
       case "CRITICAL": return "destructive";
       case "HIGH": return "destructive";
-      case "MEDIUM": return "secondary"; // Using secondary (yellow-ish in some themes) or adjust theme
+      case "MEDIUM": return "secondary";
       case "LOW": return "outline";
       default: return "outline";
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-        case "CLOSED": return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-        case "RESOLVED": return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-        case "OPEN": return <AlertCircle className="h-4 w-4 text-blue-500" />;
-        default: return <AlertCircle className="h-4 w-4 text-muted-foreground" />;
-    }
-  };
+  // Stats calculations
+  const totalDeviations = node.deviations.length;
+  const openDeviations = node.deviations.filter(d => d.status === "OPEN").length;
+  const withRecommendations = node.deviations.filter(d => d.recommendations).length;
+  const highRiskCount = node.deviations.filter(d => d.riskLevel === "HIGH" || d.riskLevel === "CRITICAL").length;
 
   return (
-    <div className="min-h-screen bg-background pb-12">
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pt-4 pb-2">
-        <div className="flex h-14 items-center justify-between px-6 max-w-7xl mx-auto w-full">
-            <div className="flex flex-col gap-1">
-                <Link
-                    href={`/org/${organizationSlug}/projects/${project.id}`}
-                    className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                    <ArrowLeft className="mr-1 h-4 w-4" />
-                    Back to Project
-                </Link>
-                <div className="flex items-baseline gap-2">
-                    <h1 className="text-xl font-bold tracking-tight">{node.name}</h1>
+    <PageContainer>
+      <PageHeader
+        title={node.name}
+        description={node.description || "Study node for HAZOP analysis"}
+        backHref={`/org/${organizationSlug}/projects/${project.id}`}
+        backLabel={project.name}
+        actions={
+          canEdit && (
+            <StatusButton 
+              status={saveStatus} 
+              onClick={handleSaveNode}
+              onStatusReset={() => setSaveStatus("idle")}
+            />
+          )
+        }
+      />
+
+      {/* Stats */}
+      <StatsGrid columns={4}>
+        <StatsCard
+          title="Deviations"
+          value={totalDeviations}
+          icon={AlertTriangle}
+          iconColor="text-orange-500"
+        />
+        <StatsCard
+          title="Open Issues"
+          value={openDeviations}
+          icon={GitBranch}
+          iconColor="text-blue-500"
+        />
+        <StatsCard
+          title="High Risk"
+          value={highRiskCount}
+          icon={AlertTriangle}
+          iconColor="text-red-500"
+        />
+        <StatsCard
+          title="Recommendations"
+          value={withRecommendations}
+          icon={FileText}
+          iconColor="text-green-500"
+        />
+      </StatsGrid>
+
+      {/* Main Content Grid */}
+      <div className="grid gap-6 lg:grid-cols-12">
+        {/* Left Column: Node Definition */}
+        <div className="lg:col-span-4 space-y-6">
+          <div className="lg:sticky lg:top-24 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Node Definition</CardTitle>
+                <CardDescription>Define the boundaries and intent of this node.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Node Name</Label>
+                  <Input
+                    id="name"
+                    value={node.name}
+                    onChange={(e) => setNode({ ...node, name: e.target.value })}
+                    disabled={!canEdit}
+                  />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={node.description || ""}
+                    onChange={(e) => setNode({ ...node, description: e.target.value })}
+                    disabled={!canEdit}
+                    className="min-h-20 resize-y"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="designIntent">Design Intent</Label>
+                  <Textarea
+                    id="designIntent"
+                    value={node.designIntent || ""}
+                    onChange={(e) => setNode({ ...node, designIntent: e.target.value })}
+                    disabled={!canEdit}
+                    placeholder="e.g. Transfer reactants from storage to reactor at 50kg/h and 25°C"
+                    className="min-h-30 resize-y font-mono text-sm"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Right Column: Deviations */}
+        <div className="lg:col-span-8 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">Deviations</h2>
+              <p className="text-sm text-muted-foreground">
+                Identified hazards and operability issues for this node.
+              </p>
             </div>
             {canEdit && (
-                <StatusButton 
-                    status={saveStatus} 
-                    onClick={handleSaveNode}
-                    onStatusReset={() => setSaveStatus("idle")}
-                />
-            )}
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto w-full px-6 py-6 space-y-8">
-        {/* Main Content Grid */}
-        <div className="grid gap-8 lg:grid-cols-12">
-            {/* Left Column: Node Definition */}
-            <div className="lg:col-span-4 space-y-6">
-                <div className="lg:sticky lg:top-32 space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-base">Node Definition</CardTitle>
-                            <CardDescription>Define the boundaries and intent of this node.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="name">Node Name</Label>
-                                <Input
-                                    id="name"
-                                    value={node.name}
-                                    onChange={(e) => setNode({ ...node, name: e.target.value })}
-                                    disabled={!canEdit}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="description">Description</Label>
-                                <Textarea
-                                    id="description"
-                                    value={node.description || ""}
-                                    onChange={(e) => setNode({ ...node, description: e.target.value })}
-                                    disabled={!canEdit}
-                                    className="min-h-[80px] resize-y"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="designIntent">Design Intent</Label>
-                                <Textarea
-                                    id="designIntent"
-                                    value={node.designIntent || ""}
-                                    onChange={(e) => setNode({ ...node, designIntent: e.target.value })}
-                                    disabled={!canEdit}
-                                    placeholder="e.g. Transfer reactants from storage to reactor at 50kg/h and 25°C"
-                                    className="min-h-[120px] resize-y font-mono text-sm"
-                                />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
-
-            {/* Right Column: Deviations */}
-            <div className="lg:col-span-8 space-y-6">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h2 className="text-lg font-semibold tracking-tight">Deviations</h2>
-                        <p className="text-sm text-muted-foreground">
-                            Identified hazards and operability issues for this node.
-                        </p>
-                    </div>
-                    {canEdit && (
-                        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-                            <DialogTrigger asChild>
-                                <Button>
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Add Deviation
-                                </Button>
-                            </DialogTrigger>
+              <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Deviation
+                  </Button>
+                </DialogTrigger>
                             <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                                 <DialogHeader>
                                     <DialogTitle>Add New Deviation</DialogTitle>
@@ -318,7 +334,7 @@ export function NodeView({ node: initialNode, project, organizationSlug, userRol
                                                 placeholder="What causes this deviation?" 
                                                 value={newDeviation.cause}
                                                 onChange={(e) => setNewDeviation({...newDeviation, cause: e.target.value})}
-                                                className="min-h-[100px]"
+                                                className="min-h-25"
                                             />
                                         </div>
                                         <div className="space-y-2">
@@ -327,7 +343,7 @@ export function NodeView({ node: initialNode, project, organizationSlug, userRol
                                                 placeholder="What is the impact?" 
                                                 value={newDeviation.consequence}
                                                 onChange={(e) => setNewDeviation({...newDeviation, consequence: e.target.value})}
-                                                className="min-h-[100px]"
+                                                className="min-h-25"
                                             />
                                         </div>
                                     </div>
@@ -364,74 +380,69 @@ export function NodeView({ node: initialNode, project, organizationSlug, userRol
                     )}
                 </div>
 
-                {node.deviations.length === 0 ? (
-                    <Card className="border-dashed">
-                        <CardContent className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
-                            <div className="rounded-full bg-muted p-3 mb-4">
-                                <AlertTriangle className="h-6 w-6 opacity-50" />
-                            </div>
-                            <h3 className="text-lg font-semibold text-foreground">No deviations yet</h3>
-                            <p className="max-w-sm mt-2 text-sm">
-                                Start the HAZOP analysis by identifying potential deviations from the design intent.
-                            </p>
-                            {canEdit && (
-                                <Button variant="outline" className="mt-6" onClick={() => setShowAddDialog(true)}>
-                                    Add First Deviation
-                                </Button>
-                            )}
-                        </CardContent>
-                    </Card>
-                ) : (
-                    <div className="space-y-4">
-                        {node.deviations.map((dev) => (
-                            <Card key={dev.id} className="overflow-hidden transition-all hover:shadow-md">
-                                <div className="border-b bg-muted/40 px-4 py-3 flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <Badge variant="outline" className="bg-background text-sm font-medium">
-                                            {dev.guideWord} {dev.parameter}
-                                        </Badge>
-                                        <span className="text-sm font-medium text-muted-foreground">
-                                            {dev.deviation}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Badge variant={getRiskBadgeVariant(dev.riskLevel)} className="text-[10px] uppercase">
-                                            {dev.riskLevel || "Unrated"}
-                                        </Badge>
-                                        <Badge variant="secondary" className="text-[10px] uppercase">
-                                            {dev.status.replace("_", " ")}
-                                        </Badge>
-                                    </div>
-                                </div>
-                                <CardContent className="p-4 grid md:grid-cols-2 gap-6 text-sm">
-                                    <div className="space-y-4">
-                                        <div>
-                                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Causes</span>
-                                            <p className="text-foreground/90 leading-relaxed">{dev.cause || "—"}</p>
-                                        </div>
-                                        <div>
-                                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Consequences</span>
-                                            <p className="text-foreground/90 leading-relaxed">{dev.consequence || "—"}</p>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-4">
-                                        <div>
-                                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Safeguards</span>
-                                            <p className="text-foreground/90 leading-relaxed">{dev.safeguards || "—"}</p>
-                                        </div>
-                                        <div>
-                                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Recommendations</span>
-                                            <p className="text-foreground/90 leading-relaxed">{dev.recommendations || "—"}</p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
+          {node.deviations.length === 0 ? (
+            <EmptyState
+              icon={AlertTriangle}
+              title="No deviations yet"
+              description="Start the HAZOP analysis by identifying potential deviations from the design intent."
+              action={
+                canEdit && (
+                  <Button variant="outline" onClick={() => setShowAddDialog(true)}>
+                    Add First Deviation
+                  </Button>
+                )
+              }
+            />
+          ) : (
+            <div className="space-y-4">
+              {node.deviations.map((dev) => (
+                <Card key={dev.id} className="overflow-hidden transition-all hover:shadow-md">
+                  <div className="border-b bg-muted/40 px-4 py-3 flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <Badge variant="outline" className="bg-background text-sm font-medium">
+                        {dev.guideWord} {dev.parameter}
+                      </Badge>
+                      <span className="text-sm font-medium text-muted-foreground">
+                        {dev.deviation}
+                      </span>
                     </div>
-                )}
+                    <div className="flex items-center gap-2">
+                      <Badge variant={getRiskBadgeVariant(dev.riskLevel)} className="text-[10px] uppercase">
+                        {dev.riskLevel || "Unrated"}
+                      </Badge>
+                      <Badge variant="secondary" className="text-[10px] uppercase">
+                        {dev.status.replace("_", " ")}
+                      </Badge>
+                    </div>
+                  </div>
+                  <CardContent className="p-4 grid md:grid-cols-2 gap-6 text-sm">
+                    <div className="space-y-4">
+                      <div>
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Causes</span>
+                        <p className="text-foreground/90 leading-relaxed">{dev.cause || "—"}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Consequences</span>
+                        <p className="text-foreground/90 leading-relaxed">{dev.consequence || "—"}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Safeguards</span>
+                        <p className="text-foreground/90 leading-relaxed">{dev.safeguards || "—"}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Recommendations</span>
+                        <p className="text-foreground/90 leading-relaxed">{dev.recommendations || "—"}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
+          )}
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }

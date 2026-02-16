@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,18 +10,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { StatusButton } from "@/components/ui/status-button";
+import { PageContainer } from "@/components/ui/page-container";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   User,
   Shield,
-  Loader2,
-  Save,
   ImageIcon,
   X,
-  Sun,
-  Moon,
-  Monitor,
-  Check,
 } from "lucide-react";
+import { PasswordStrengthBar } from "@/components/auth/password-strength-bar";
 
 const MAX_AVATAR_URL_LENGTH = 2048;
 
@@ -96,8 +93,6 @@ interface SettingsViewProps {
 
 export function SettingsView({ user }: SettingsViewProps) {
   const router = useRouter();
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState("profile");
   const [saving, setSaving] = useState(false);
   const [profileSaveStatus, setProfileSaveStatus] = useState<"idle" | "success" | "error">("idle");
@@ -115,11 +110,6 @@ export function SettingsView({ user }: SettingsViewProps) {
     confirmPassword: "",
   });
   const [passwordError, setPasswordError] = useState("");
-
-  // Prevent hydration mismatch for theme
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const handleAvatarUrlChange = (url: string) => {
     setProfileData((prev) => ({ ...prev, avatar: url }));
@@ -185,11 +175,6 @@ export function SettingsView({ user }: SettingsViewProps) {
       return;
     }
 
-    if (passwordData.newPassword.length < 8) {
-      setPasswordError("Password must be at least 8 characters");
-      return;
-    }
-
     setSaving(true);
     try {
       const res = await fetch("/api/user/password", {
@@ -224,13 +209,11 @@ export function SettingsView({ user }: SettingsViewProps) {
   };
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground mt-1">
-          Manage your account settings and preferences
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Settings"
+        description="Manage your account settings and preferences"
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-6">
@@ -332,29 +315,13 @@ export function SettingsView({ user }: SettingsViewProps) {
               </div>
 
               <div className="flex justify-end">
-                <Button
+                <StatusButton
                   onClick={handleSaveProfile}
-                  disabled={saving}
-                  variant={profileSaveStatus === "success" ? "default" : "default"}
-                  className={profileSaveStatus === "success" ? "bg-green-600 hover:bg-green-600" : ""}
-                >
-                  {saving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : profileSaveStatus === "success" ? (
-                    <>
-                      <Check className="mr-2 h-4 w-4" />
-                      Saved
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Save Changes
-                    </>
-                  )}
-                </Button>
+                  status={saving ? "loading" : profileSaveStatus}
+                  loadingText="Saving..."
+                  successText="Saved"
+                  idleText="Save Changes"
+                />
               </div>
             </CardContent>
           </Card>
@@ -402,6 +369,7 @@ export function SettingsView({ user }: SettingsViewProps) {
                     }))
                   }
                 />
+                <PasswordStrengthBar password={passwordData.newPassword} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="confirmPassword">Confirm New Password</Label>
@@ -419,25 +387,13 @@ export function SettingsView({ user }: SettingsViewProps) {
               </div>
 
               <div className="flex justify-end pt-4">
-                <Button
+                <StatusButton
                   onClick={handleChangePassword}
-                  disabled={saving}
-                  className={passwordSaveStatus === "success" ? "bg-green-600 hover:bg-green-600" : ""}
-                >
-                  {saving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Updating...
-                    </>
-                  ) : passwordSaveStatus === "success" ? (
-                    <>
-                      <Check className="mr-2 h-4 w-4" />
-                      Updated
-                    </>
-                  ) : (
-                    "Update Password"
-                  )}
-                </Button>
+                  status={saving ? "loading" : passwordSaveStatus}
+                  loadingText="Updating..."
+                  successText="Updated"
+                  idleText="Update Password"
+                />
               </div>
             </CardContent>
           </Card>
@@ -463,6 +419,6 @@ export function SettingsView({ user }: SettingsViewProps) {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+    </PageContainer>
   );
 }

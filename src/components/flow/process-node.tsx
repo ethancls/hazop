@@ -59,7 +59,8 @@ export const ProcessNode = memo(function ProcessNode({
       <Handle
         type="target"
         position={Position.Left}
-        className="w-3! h-3! bg-primary! border-2! border-background!"
+        className="!w-3 !h-3 !bg-primary !border-2 !border-background"
+        style={{ width: 12, height: 12, background: 'hsl(var(--primary))', border: '2px solid hsl(var(--background))' }}
       />
       
       <div className="flex items-center gap-3">
@@ -98,7 +99,8 @@ export const ProcessNode = memo(function ProcessNode({
       <Handle
         type="source"
         position={Position.Right}
-        className="w-3! h-3! bg-primary! border-2! border-background!"
+        className="!w-3 !h-3 !bg-primary !border-2 !border-background"
+        style={{ width: 12, height: 12, background: 'hsl(var(--primary))', border: '2px solid hsl(var(--background))' }}
       />
     </div>
   );

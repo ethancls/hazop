@@ -7,19 +7,19 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatsCard, StatsGrid } from "@/components/ui/stats-card";
+import { PageContainer } from "@/components/ui/page-container";
+import { PageHeader } from "@/components/ui/page-header";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { CriticalDeleteDialog } from "@/components/ui/critical-delete-dialog";
+import { StatusButton } from "@/components/ui/status-button";
 import {
   Building2,
-  Save,
-  Loader2,
   Trash2,
   Users,
   FolderKanban,
   AlertTriangle,
-  Check,
-  X,
   Sparkles,
   ChevronRight,
 } from "lucide-react";
@@ -110,45 +110,30 @@ export function OrgSettingsView({ organization }: OrgSettingsViewProps) {
     }
   };
 
-  const handleCopyName = () => {
-    navigator.clipboard.writeText(organization.name);
-  };
+  // handleCopyName removed as unused
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Organization Settings</h1>
-        <p className="text-muted-foreground mt-1">
-          Manage settings for {organization.name}
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Organization Settings"
+        description={`Manage settings for ${organization.name}`}
+      />
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-3 pb-2">
-            <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-              <Users className="h-5 w-5 text-blue-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{organization._count.members}</p>
-              <p className="text-xs text-muted-foreground">Members</p>
-            </div>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-3 pb-2">
-            <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
-              <FolderKanban className="h-5 w-5 text-green-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{organization._count.projects}</p>
-              <p className="text-xs text-muted-foreground">Projects</p>
-            </div>
-          </CardHeader>
-        </Card>
-      </div>
+      {/* Stats Overview */}}
+      <StatsGrid columns={2}>
+        <StatsCard
+          title="Members"
+          value={organization._count.members}
+          icon={Users}
+          iconColor="text-blue-500"
+        />
+        <StatsCard
+          title="Projects"
+          value={organization._count.projects}
+          icon={FolderKanban}
+          iconColor="text-green-500"
+        />
+      </StatsGrid>
 
       {/* AI Configuration Link */}
       <Link href={`/org/${organization.slug}/settings/ai`}>
@@ -289,35 +274,13 @@ export function OrgSettingsView({ organization }: OrgSettingsViewProps) {
 
       {/* Save Button */}
       <div className="flex justify-end gap-3 items-center">
-        {saveStatus === "error" && (
-          <span className="text-sm text-destructive flex items-center gap-1">
-            <X className="h-4 w-4" />
-            Failed to save
-          </span>
-        )}
-        <Button 
-          onClick={handleSave} 
-          disabled={saving}
-          variant={saveStatus === "success" ? "outline" : "default"}
-          className={saveStatus === "success" ? "text-green-600 border-green-600 dark:text-green-400 dark:border-green-400" : ""}
-        >
-          {saving ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Saving...
-            </>
-          ) : saveStatus === "success" ? (
-            <>
-              <Check className="h-4 w-4 mr-2" />
-              Saved
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4 mr-2" />
-              Save Changes
-            </>
-          )}
-        </Button>
+        <StatusButton
+          onClick={handleSave}
+          status={saving ? "loading" : saveStatus}
+          loadingText="Saving..."
+          successText="Saved"
+          idleText="Save Changes"
+        />
       </div>
 
       {/* Danger Zone */}
@@ -367,6 +330,6 @@ export function OrgSettingsView({ organization }: OrgSettingsViewProps) {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 }

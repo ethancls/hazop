@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
       provider: aiSettings.provider as AIProvider,
       apiKey: aiSettings.apiKey,
       model: aiSettings.model || undefined,
+      baseUrl: aiSettings.baseUrl || undefined,
     });
 
     const analysisRequest: HAZOPAnalysisRequest = {

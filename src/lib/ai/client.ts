@@ -1,6 +1,6 @@
 // AI Client for multiple providers
 
-import { AIProvider, AIMessage, HAZOP_SYSTEM_PROMPT, NODE_GENERATION_SYSTEM_PROMPT, HAZOPAnalysisRequest, HAZOPAnalysisResponse, AI_PROVIDERS } from "./providers";
+import { AIProvider, AIMessage, HAZOP_SYSTEM_PROMPT, NODE_GENERATION_SYSTEM_PROMPT, PROJECT_DETAILS_GENERATION_PROMPT, HAZOPAnalysisRequest, HAZOPAnalysisResponse, AI_PROVIDERS } from "./providers";
 
 interface AIClientOptions {
   provider: AIProvider;
@@ -218,9 +218,29 @@ export class AIClient {
         return JSON.parse(jsonMatch[0]);
       }
       throw new Error("No valid JSON object found in response");
-    } catch (e) {
+    } catch {
       console.error("Failed to parse generated nodes:", response);
       throw new Error("Failed to parse AI generated nodes");
+    }
+  }
+
+  async generateProjectDetails(userInput: string): Promise<{ name: string; description: string }> {
+    const messages: AIMessage[] = [
+      { role: "system", content: PROJECT_DETAILS_GENERATION_PROMPT },
+      { role: "user", content: `Help me create a HAZOP project based on this idea:\n\n${userInput}` },
+    ];
+
+    const response = await this.chat(messages);
+    
+    try {
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      throw new Error("No valid JSON object found in response");
+    } catch {
+      console.error("Failed to parse project details:", response);
+      throw new Error("Failed to parse AI generated project details");
     }
   }
 }

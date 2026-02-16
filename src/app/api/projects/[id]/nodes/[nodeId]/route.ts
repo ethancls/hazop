@@ -14,9 +14,16 @@ export async function GET(
 
     const { id: projectId, nodeId } = await params;
 
-    // Verify project ownership
+    // Verify user has access to project through organization membership
     const project = await prisma.project.findFirst({
-      where: { id: projectId, createdById: user.id },
+      where: {
+        id: projectId,
+        organization: {
+          members: {
+            some: { userId: user.id },
+          },
+        },
+      },
     });
 
     if (!project) {
@@ -28,10 +35,10 @@ export async function GET(
       include: {
         deviations: {
           include: {
-            causes: true,
-            consequences: true,
-            safeguards: true,
-            recommendations: true,
+            causesDetailed: true,
+            consequencesDetailed: true,
+            safeguardsDetailed: true,
+            recommendationsDetailed: true,
           },
         },
       },
@@ -61,13 +68,23 @@ export async function PATCH(
     const { id: projectId, nodeId } = await params;
     const data = await request.json();
 
-    // Verify project ownership
+    // Verify user has access to project through organization membership
     const project = await prisma.project.findFirst({
-      where: { id: projectId, createdById: user.id },
+      where: {
+        id: projectId,
+        organization: {
+          members: {
+            some: {
+              userId: user.id,
+              role: { in: ['OWNER', 'ADMIN', 'MEMBER'] },
+            },
+          },
+        },
+      },
     });
 
     if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Project not found or insufficient permissions' }, { status: 404 });
     }
 
     const node = await prisma.node.update({
@@ -77,8 +94,10 @@ export async function PATCH(
         description: data.description,
         designIntent: data.designIntent,
         equipment: data.equipment,
-        positionX: data.positionX,
-        positionY: data.positionY,
+        parameters: data.parameters,
+        position: data.position,
+        nodeType: data.nodeType,
+        color: data.color,
       },
     });
 
@@ -101,13 +120,24 @@ export async function DELETE(
 
     const { id: projectId, nodeId } = await params;
 
-    // Verify project ownership
+    // Verify project access through organization membership
+    // Only OWNER, ADMIN, and MEMBER can delete nodes
     const project = await prisma.project.findFirst({
-      where: { id: projectId, createdById: user.id },
+      where: { 
+        id: projectId,
+        organization: {
+          members: {
+            some: {
+              userId: user.id,
+              role: { in: ['OWNER', 'ADMIN', 'MEMBER'] },
+            },
+          },
+        },
+      },
     });
 
     if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Project not found or insufficient permissions' }, { status: 404 });
     }
 
     await prisma.node.delete({ where: { id: nodeId } });

@@ -40,6 +40,38 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       nodes: {
         include: {
           deviations: {
+            include: {
+              assignments: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                      avatar: true,
+                    },
+                  },
+                },
+              },
+              comments: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                      avatar: true,
+                    },
+                  },
+                },
+              },
+              _count: {
+                select: {
+                  assignments: true,
+                  comments: true,
+                },
+              },
+            },
             orderBy: { createdAt: "asc" },
           },
           _count: {
@@ -57,6 +89,21 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   if (!project) {
     notFound();
   }
+
+  // Get organization members for assignment
+  const members = await prisma.organizationMember.findMany({
+    where: { organizationId: organization.id },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          avatar: true,
+        },
+      },
+    },
+  });
 
   return (
     <ProjectView
@@ -87,10 +134,20 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             severity: d.severity,
             likelihood: d.likelihood,
             riskLevel: d.riskLevel,
+            assignments: d.assignments?.map((a) => ({
+              ...a,
+              dueDate: a.dueDate?.toISOString() || null,
+            })) || [],
+            comments: d.comments?.map((c) => ({
+              ...c,
+              createdAt: c.createdAt.toISOString(),
+            })) || [],
+            _count: d._count,
           })),
           _count: { deviations: node._count.deviations },
         })),
       }}
+      members={members.map((m) => m.user)}
       organizationSlug={slug}
       userRole={organization.members[0].role}
     />

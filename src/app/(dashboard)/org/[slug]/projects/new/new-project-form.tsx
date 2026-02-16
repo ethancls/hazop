@@ -14,8 +14,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Beaker, Loader2, ArrowLeft } from "lucide-react";
+import { Beaker, Loader2, ArrowLeft, Sparkles } from "lucide-react";
 import Link from "next/link";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface NewProjectFormProps {
   organizationId: string;
@@ -32,7 +41,48 @@ export function NewProjectForm({ organizationId, organizationSlug, organizationN
     description: "",
     status: "DRAFT",
   });
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [aiInput, setAiInput] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiError, setAiError] = useState("");
+  const handleGenerateWithAI = async () => {
+    if (!aiInput.trim()) {
+      setAiError("Please describe your project idea");
+      return;
+    }
 
+    setIsGenerating(true);
+    setAiError("");
+
+    try {
+      const res = await fetch(`/api/organizations/${organizationSlug}/ai/generate-project`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userInput: aiInput }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setAiError(data.error || "Failed to generate project details");
+        return;
+      }
+
+      // Fill the form with AI-generated data
+      setFormData((prev) => ({
+        ...prev,
+        name: data.name,
+        description: data.description,
+      }));
+
+      setAiDialogOpen(false);
+      setAiInput("");
+    } catch {
+      setAiError("An error occurred. Please try again.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -87,8 +137,70 @@ export function NewProjectForm({ organizationId, organizationSlug, organizationN
             <Beaker className="h-5 w-5" />
             Project Details
           </CardTitle>
-          <CardDescription>
-            Define the basic information for your HAZOP study
+          <CardDescription className="flex items-center justify-between">
+            <span>Define the basic information for your HAZOP study</span>
+            <Dialog open={aiDialogOpen} onOpenChange={setAiDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  AI Assistant
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[525px]">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    AI Project Assistant
+                  </DialogTitle>
+                  <DialogDescription>
+                    Describe your process or system briefly, and AI will generate a professional project name and detailed description for your HAZOP study.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  {aiError && (
+                    <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg">
+                      {aiError}
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="ai-input">Your Project Idea</Label>
+                    <Textarea
+                      id="ai-input"
+                      placeholder="e.g., A chemical reactor that processes ethanol at 150°C and 5 bar, with cooling water system..."
+                      value={aiInput}
+                      onChange={(e) => setAiInput(e.target.value)}
+                      rows={6}
+                      disabled={isGenerating}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Include: process type, key equipment, materials, operating conditions, safety concerns
+                    </p>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setAiDialogOpen(false)}
+                    disabled={isGenerating}
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={handleGenerateWithAI} disabled={isGenerating}>
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Generate
+                      </>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </CardDescription>
         </CardHeader>
         <CardContent>

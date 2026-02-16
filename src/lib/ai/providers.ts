@@ -16,17 +16,17 @@ export const AI_PROVIDERS: Record<AIProvider, AIProviderConfig> = {
     defaultModel: "gpt-4o-mini",
   },
   ANTHROPIC: {
-    name: "Anthropic (Claude)",
+    name: "Anthropic",
     models: ["claude-sonnet-4-20250514", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"],
     defaultModel: "claude-sonnet-4-20250514",
   },
   GOOGLE: {
-    name: "Google (Gemini)",
+    name: "Google",
     models: ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
     defaultModel: "gemini-2.0-flash",
   },
   OLLAMA: {
-    name: "Ollama (Local)",
+    name: "Ollama",
     models: ["llama3.2", "llama3.1", "mistral", "mixtral", "codellama", "deepseek-coder"],
     defaultModel: "llama3.2",
     baseUrl: "http://localhost:11434",
@@ -149,4 +149,28 @@ Respond in JSON format with the following structure:
   ]
 }
 
-Keep the number of nodes reasonable (typically 3-8 depending on complexity). Be precise with engineering terms.`;
+Be precise with engineering terms. Generate as many nodes as necessary to properly represent the process - don't artificially limit the number of nodes. The AI should determine the appropriate number based on the process complexity.`;
+
+// System prompt for generating project details
+export const PROJECT_DETAILS_GENERATION_PROMPT = `You are an expert Process Engineer specializing in HAZOP (Hazard and Operability) studies. Your task is to help users create well-structured HAZOP project descriptions based on their brief input.
+
+Given a user's brief description or idea for a HAZOP project:
+1. Generate a clear, professional project name that follows industry conventions
+2. Create a detailed technical description that includes:
+   - Process overview and purpose
+   - Key equipment and components
+   - Main process streams and materials
+   - Operating conditions (temperature, pressure, flow rates where relevant)
+   - System boundaries
+   - Safety considerations
+   - Study objectives
+
+The description should be comprehensive enough for an AI to generate appropriate HAZOP study nodes from it.
+
+Respond in JSON format:
+{
+  "name": "Professional Project Name",
+  "description": "Detailed technical description..."
+}
+
+Be specific and use proper engineering terminology. The description should typically be 3-5 paragraphs covering all relevant aspects of the process.`;

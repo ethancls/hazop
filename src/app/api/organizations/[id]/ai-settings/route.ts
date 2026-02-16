@@ -68,7 +68,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { provider, apiKey, model, enabled } = body;
+    const { provider, apiKey, model, baseUrl, enabled } = body;
 
     const membership = await prisma.organizationMember.findUnique({
       where: {
@@ -94,6 +94,7 @@ export async function PUT(
         provider: provider || undefined,
         apiKey: apiKey === undefined ? undefined : apiKey,
         model: model === undefined ? undefined : model,
+        baseUrl: baseUrl === undefined ? undefined : baseUrl,
         enabled: enabled === undefined ? undefined : enabled,
       },
       create: {
@@ -101,6 +102,7 @@ export async function PUT(
         provider: provider || "OPENAI",
         apiKey: apiKey || null,
         model: model || null,
+        baseUrl: baseUrl || null,
         enabled: enabled || false,
       },
     });

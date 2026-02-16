@@ -3,6 +3,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StatsCard, StatsGrid } from "@/components/ui/stats-card";
+import { PageContainer } from "@/components/ui/page-container";
+import { PageHeader } from "@/components/ui/page-header";
 import Link from "next/link";
 import { 
   Plus, 
@@ -79,59 +82,44 @@ export function OrgDashboardView({ organization, userRole, projects, stats }: Or
   ];
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">{organization.name}</h1>
-            <Badge variant="outline" className="capitalize">
-              {userRole.toLowerCase()}
-            </Badge>
-          </div>
-          {organization.description && (
-            <p className="text-muted-foreground mt-1">{organization.description}</p>
-          )}
-          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Users className="h-4 w-4" />
-              {organization.memberCount} members
-            </span>
-            <span className="flex items-center gap-1">
-              <FolderOpen className="h-4 w-4" />
-              {organization.projectCount} projects
-            </span>
-          </div>
-        </div>
-        {canCreateProjects && (
+    <PageContainer>
+      <PageHeader
+        title={organization.name}
+        description={organization.description || undefined}
+        badge={{ label: userRole.toLowerCase(), variant: "outline" }}
+        actions={canCreateProjects ? (
           <Button asChild>
             <Link href={`/org/${organization.slug}/projects/new`}>
               <Plus className="mr-2 h-4 w-4" />
               New Project
             </Link>
           </Button>
-        )}
-      </div>
+        ) : undefined}
+      >
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <Users className="h-4 w-4" />
+            {organization.memberCount} members
+          </span>
+          <span className="flex items-center gap-1">
+            <FolderOpen className="h-4 w-4" />
+            {organization.projectCount} projects
+          </span>
+        </div>
+      </PageHeader>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={stat.title}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {stat.title}
-                </CardTitle>
-                <Icon className={`h-4 w-4 ${stat.color}`} />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      <StatsGrid columns={4}>
+        {statCards.map((stat) => (
+          <StatsCard
+            key={stat.title}
+            title={stat.title}
+            value={stat.value}
+            icon={stat.icon}
+            iconColor={stat.color}
+          />
+        ))}
+      </StatsGrid>
 
       {/* Projects */}
       <Card>
@@ -231,6 +219,6 @@ export function OrgDashboardView({ organization, userRole, projects, stats }: Or
           </Card>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

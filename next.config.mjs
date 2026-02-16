@@ -12,6 +12,7 @@ const nextConfig = {
       },
     ],
   },
+  devIndicators: false 
 };
 
 const withMDX = createMDX({

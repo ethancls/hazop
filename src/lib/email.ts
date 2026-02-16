@@ -1,8 +1,9 @@
 import { Resend } from 'resend';
+import { env } from './env';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-const fromEmail = process.env.FROM_EMAIL || 'noreply@hazop.app';
-const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const resend = new Resend(env.RESEND_API_KEY);
+const fromEmail = process.env.FROM_EMAIL;
+const appUrl = process.env.NEXT_PUBLIC_APP_URL;
 
 interface SendEmailOptions {
   to: string;

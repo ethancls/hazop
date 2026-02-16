@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import prisma from "@/lib/db";
 
 // GET /api/organizations/[id]/projects - Get organization projects
+// Note: id can be either an organization ID or a slug
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -15,11 +16,26 @@ export async function GET(
 
     const { id } = await params;
 
+    // Find organization by id or slug
+    const organization = await prisma.organization.findFirst({
+      where: {
+        OR: [
+          { id },
+          { slug: id },
+        ],
+      },
+      select: { id: true },
+    });
+
+    if (!organization) {
+      return NextResponse.json({ error: "Organization not found" }, { status: 404 });
+    }
+
     // Verify user is a member of the organization
     const membership = await prisma.organizationMember.findUnique({
       where: {
         organizationId_userId: {
-          organizationId: id,
+          organizationId: organization.id,
           userId: user.id,
         },
       },
@@ -31,7 +47,7 @@ export async function GET(
 
     // Get organization projects
     const projects = await prisma.project.findMany({
-      where: { organizationId: id },
+      where: { organizationId: organization.id },
       select: {
         id: true,
         name: true,

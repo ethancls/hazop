@@ -4,40 +4,11 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Eye, EyeOff, Check, X } from "lucide-react";
-
-interface PasswordStrength {
-  hasMinLength: boolean;
-  hasUppercase: boolean;
-  hasLowercase: boolean;
-  hasNumber: boolean;
-  hasSpecialChar: boolean;
-  score: number;
-}
-
-function checkPasswordStrength(password: string): PasswordStrength {
-  const hasMinLength = password.length >= 8;
-  const hasUppercase = /[A-Z]/.test(password);
-  const hasLowercase = /[a-z]/.test(password);
-  const hasNumber = /[0-9]/.test(password);
-  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-  
-  const score = [hasMinLength, hasUppercase, hasLowercase, hasNumber, hasSpecialChar].filter(Boolean).length;
-  
-  return { hasMinLength, hasUppercase, hasLowercase, hasNumber, hasSpecialChar, score };
-}
-
-function PasswordRequirement({ met, text }: { met: boolean; text: string }) {
-  return (
-    <div className={cn("flex items-center gap-2 text-xs", met ? "text-green-600 dark:text-green-400" : "text-muted-foreground")}>
-      {met ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-      {text}
-    </div>
-  );
-}
+import { Loader2, Eye, EyeOff } from "lucide-react";
+import { PasswordStrengthBar } from "@/components/auth/password-strength-bar";
 
 export function RegisterForm({
   className,
@@ -53,20 +24,12 @@ export function RegisterForm({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const passwordStrength = useMemo(() => checkPasswordStrength(password), [password]);
-  const isPasswordValid = passwordStrength.score >= 4;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
     if (password !== confirmPassword) {
       setError("Passwords do not match");
-      return;
-    }
-
-    if (!isPasswordValid) {
-      setError("Password does not meet the requirements");
       return;
     }
 
@@ -166,15 +129,7 @@ export function RegisterForm({
               )}
             </button>
           </div>
-          {password && (
-            <div className="grid grid-cols-2 gap-1 mt-1">
-              <PasswordRequirement met={passwordStrength.hasMinLength} text="8+ characters" />
-              <PasswordRequirement met={passwordStrength.hasUppercase} text="Uppercase" />
-              <PasswordRequirement met={passwordStrength.hasLowercase} text="Lowercase" />
-              <PasswordRequirement met={passwordStrength.hasNumber} text="Number" />
-              <PasswordRequirement met={passwordStrength.hasSpecialChar} text="Special char" />
-            </div>
-          )}
+          <PasswordStrengthBar password={password} />
         </div>
         <div className="grid gap-2">
           <Label htmlFor="confirmPassword">Confirm Password</Label>
@@ -206,7 +161,7 @@ export function RegisterForm({
             <p className="text-xs text-destructive">Passwords do not match</p>
           )}
         </div>
-        <Button type="submit" className="w-full cursor-pointer" disabled={loading || !isPasswordValid}>
+        <Button type="submit" className="w-full cursor-pointer" disabled={loading}>
           {loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

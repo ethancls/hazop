@@ -19,18 +19,18 @@ import {
   BackgroundVariant,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { 
   Plus, 
   Save, 
   Trash2, 
-  ZoomIn, 
-  ZoomOut, 
-  Maximize2,
   Circle,
   Square,
   Hexagon,
   ArrowRight,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 import { ProcessNode } from "./process-node";
 import {
@@ -41,6 +41,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 const nodeTypes: NodeTypes = {
   process: ProcessNode,
@@ -96,10 +108,19 @@ const initialEdges: Edge[] = [
   },
 ];
 
-export function FlowEditor() {
+interface FlowEditorProps {
+  projectId?: string;
+  organizationId?: string;
+}
+
+export function FlowEditor({ projectId, organizationId }: FlowEditorProps) {
+  const { resolvedTheme } = useTheme();
   const [nodes, setNodes] = useState<Node[]>(initialNodes);
   const [edges, setEdges] = useState<Edge[]>(initialEdges);
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [aiDescription, setAiDescription] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
@@ -166,6 +187,48 @@ export function FlowEditor() {
     setSelectedNodes([]);
   };
 
+  const generateWithAI = async () => {
+    if (!aiDescription.trim()) {
+      toast.error("Please enter a description of the process");
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const response = await fetch("/api/ai/generate-flow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          organizationId,
+          description: aiDescription,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to generate flow");
+      }
+
+      if (data.success && data.flow) {
+        // Apply the generated nodes and edges
+        setNodes(data.flow.nodes);
+        setEdges(data.flow.edges);
+        setAiDialogOpen(false);
+        setAiDescription("");
+        toast.success("Flow diagram generated successfully!");
+      } else {
+        throw new Error("Invalid response from AI");
+      }
+    } catch (error) {
+      console.error("AI generation error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to generate flow");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <div className="w-full h-full">
       <ReactFlow
@@ -177,10 +240,16 @@ export function FlowEditor() {
         onSelectionChange={onSelectionChange}
         nodeTypes={nodeTypes}
         fitView
+        fitViewOptions={{ padding: 0.2 }}
+        defaultViewport={{ x: 0, y: 0, zoom: 0.6 }}
+        colorMode={resolvedTheme === 'dark' ? 'dark' : 'light'}
         className="bg-background"
+        connectionLineStyle={{ stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
         defaultEdgeOptions={{
           type: "smoothstep",
+          style: { stroke: 'hsl(var(--primary))', strokeWidth: 2 },
         }}
+        proOptions={{ hideAttribution: true }}
       >
         <Panel position="top-left" className="flex gap-2">
           <DropdownMenu>
@@ -227,6 +296,61 @@ export function FlowEditor() {
             <Save className="h-4 w-4 mr-2" />
             Save
           </Button>
+
+          <Dialog open={aiDialogOpen} onOpenChange={setAiDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="secondary" className="gap-2">
+                <Sparkles className="h-4 w-4" />
+                Generate with AI
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Generate Flow with AI</DialogTitle>
+                <DialogDescription>
+                  Describe your industrial process and the AI will generate a flow diagram with connected equipment.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="process-description">Process Description</Label>
+                  <Textarea
+                    id="process-description"
+                    placeholder="Example: A chemical reactor system with a feed tank, pre-heater, reactor vessel with cooling jacket, and product storage tank. Include pumps and control valves."
+                    value={aiDescription}
+                    onChange={(e) => setAiDescription(e.target.value)}
+                    rows={5}
+                    className="resize-none"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Tip: Be specific about equipment types, connections, and process parameters for better results.
+                </p>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setAiDialogOpen(false)}
+                  disabled={isGenerating}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={generateWithAI} disabled={isGenerating}>
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Generate
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </Panel>
 
         <Controls 
@@ -237,8 +361,9 @@ export function FlowEditor() {
         />
         <MiniMap 
           className="bg-card border border-border rounded-lg"
-          maskColor="rgba(0, 0, 0, 0.2)"
+          maskColor={resolvedTheme === 'dark' ? 'rgba(0, 0, 0, 0.6)' : 'rgba(0, 0, 0, 0.2)'}
           nodeColor="hsl(var(--primary))"
+          bgColor={resolvedTheme === 'dark' ? 'hsl(var(--card))' : undefined}
         />
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
       </ReactFlow>
